@@ -8,19 +8,6 @@ export default function Dashboard({ user, onNavigate }) {
 
   return (
     <div className="page">
-      <div className="dashboard-sticky-header">
-        <div className="header-left">
-          <h1 className="greeting-title">{greeting}, <span>{user?.name}</span> 👋</h1>
-        </div>
-        <div className="header-right">
-          <div className="date-badge">
-            <span className="icon">📅</span> {dateStr}
-          </div>
-          <button className="btn btn-primary" onClick={() => onNavigate('builder')}>
-            <span className="icon">+</span> Create Form
-          </button>
-        </div>
-      </div>
 
       <div className="section-label">OVERVIEW</div>
       <div className="stat-grid">

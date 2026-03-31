@@ -32,13 +32,7 @@ const Icons = {
       <path d="M3 20h18" />
     </svg>
   ),
-  DataUpload: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <ellipse cx="12" cy="5" rx="9" ry="3" />
-      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-      <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3" />
-    </svg>
-  ),
+
   OCR: () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
@@ -53,11 +47,6 @@ const Icons = {
       <circle cx="12" cy="12" r="3" />
     </svg>
   ),
-  Upgrade: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m6 9 6-7 6 7h-4l3 13-11-8h4Z" />
-    </svg>
-  )
 };
 
 export default function Sidebar({ currentPage, onNavigate, user }) {
@@ -66,13 +55,13 @@ export default function Sidebar({ currentPage, onNavigate, user }) {
     { id: 'forms', icon: <Icons.Forms />, label: 'My Forms' },
     { id: 'responses', icon: <Icons.Responses />, label: 'Responses' },
     { id: 'analytics', icon: <Icons.Analytics />, label: 'Analytics', badge: 'Beta' },
-    { id: 'dataupload', icon: <Icons.DataUpload />, label: 'Data Upload' },
+
     { id: 'ocr', icon: <Icons.OCR />, label: 'OCR Upload' },
   ];
 
   const accountItems = [
     { id: 'settings', icon: <Icons.Settings />, label: 'Settings' },
-    { id: 'upgrade', icon: <Icons.Upgrade />, label: 'Upgrade' },
+
   ];
 
   const initial = user?.name?.[0]?.toUpperCase() || 'U';
