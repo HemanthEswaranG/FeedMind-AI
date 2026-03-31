@@ -8,11 +8,11 @@ import Dashboard from './pages/Dashboard';
 import Forms from './pages/Forms';
 import Responses from './pages/Responses';
 import Analytics from './pages/Analytics';
-import DataUpload from './pages/DataUpload';
+
 import OcrUpload from './pages/OcrUpload';
 import FormBuilder from './pages/FormBuilder';
 import Settings from './pages/Settings';
-import Upgrade from './pages/Upgrade';
+
 import Navbar from './components/Navbar';
 
 export default function App() {
@@ -41,10 +41,10 @@ export default function App() {
     forms: <Forms onNavigate={navigate} />,
     responses: <Responses />,
     analytics: <Analytics />,
-    dataupload: <DataUpload />,
+
     ocr: <OcrUpload />,
     settings: <Settings />,
-    upgrade: <Upgrade />,
+
   };
 
   const now = new Date();
@@ -54,7 +54,7 @@ export default function App() {
     <div className="app-container">
       <Sidebar currentPage={currentPage} onNavigate={navigate} user={user} />
       <div className="main">
-        <Navbar user={user} dateStr={dateStr} onNavigate={navigate} />
+        <Navbar user={user} dateStr={dateStr} onNavigate={navigate} currentPage={currentPage} />
         <div className="page-content">
           {pages[currentPage] || pages.dashboard}
         </div>

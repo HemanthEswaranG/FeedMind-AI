@@ -87,23 +87,57 @@ exports.getMe = async (req, res) => {
   }
 };
 
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 // ─── POST /api/auth/google ────────────────────────────────
 exports.googleAuth = async (req, res) => {
   try {
-    const { name, email, googleId } = req.body;
-
-    let user = await User.findOne({ email });
-    if (!user) {
-      user = await User.create({ name, email, googleId });
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'Google token is required' });
     }
 
-    const token = generateToken(user._id);
+    // Verify Google Token
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const { name, email, sub: googleId, picture: avatar } = ticket.getPayload();
+
+    let user = await User.findOne({ email });
+    
+    if (!user) {
+      // Auto-register via Google
+      user = await User.create({ 
+        name, 
+        email, 
+        googleId, 
+        avatar,
+        workspace: { name: `${name}'s Workspace` }
+      });
+    }
+
+    const jwtToken = generateToken(user._id);
+
     res.json({
       success: true,
-      token,
-      user: { id: user._id, name: user.name, email: user.email, plan: user.plan },
+      token: jwtToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        plan: user.plan,
+        avatar: user.avatar,
+        workspace: user.workspace,
+        responsesUsed: user.responsesUsed,
+        responsesLimit: user.responsesLimit,
+      },
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error('Google Auth Error:', err);
+    res.status(401).json({ success: false, message: 'Invalid or expired Google token' });
   }
 };

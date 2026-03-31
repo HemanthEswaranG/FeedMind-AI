@@ -1,11 +1,35 @@
 import React from 'react';
 
-export default function Navbar({ user, dateStr, onNavigate }) {
+export default function Navbar({ user, dateStr, onNavigate, currentPage }) {
+  
+  const getPageTitle = (page) => {
+    switch (page) {
+      case 'dashboard':
+        return (
+          <>
+            Good morning, <span className="user-highlight" style={{ color: 'var(--cyan)' }}>{user?.name || 'admin'}</span> 👋
+          </>
+        );
+      case 'forms':
+        return 'My Forms';
+      case 'responses':
+        return 'Manage Responses';
+      case 'analytics':
+        return 'Advanced Analytics';
+      case 'ocr':
+        return 'OCR & AI Analysis';
+      case 'settings':
+        return 'Account Settings';
+      default:
+        return 'FeedMind';
+    }
+  };
+
   return (
     <div className="navbar">
       <div className="navbar-left">
         <h1 className="nav-greeting">
-          Good morning, <span className="user-highlight">{user?.name || 'admin'}</span> 👋
+          {getPageTitle(currentPage)}
         </h1>
       </div>
       <div className="navbar-right">
