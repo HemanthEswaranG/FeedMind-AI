@@ -32,6 +32,10 @@ const Icons = {
       <path d="M3 20h18" />
     </svg>
   ),
+<<<<<<< HEAD
+=======
+
+>>>>>>> refs/remotes/origin/master
   OCR: () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
@@ -54,11 +58,20 @@ export default function Sidebar({ currentPage, onNavigate, user }) {
     { id: 'forms', icon: <Icons.Forms />, label: 'My Forms' },
     { id: 'responses', icon: <Icons.Responses />, label: 'Responses' },
     { id: 'analytics', icon: <Icons.Analytics />, label: 'Analytics', badge: 'Beta' },
+<<<<<<< HEAD
+=======
+
+>>>>>>> refs/remotes/origin/master
     { id: 'ocr', icon: <Icons.OCR />, label: 'OCR Upload' },
   ];
 
   const accountItems = [
+<<<<<<< HEAD
     { id: 'settings', icon: <Icons.Settings />, label: 'Settings' }
+=======
+    { id: 'settings', icon: <Icons.Settings />, label: 'Settings' },
+
+>>>>>>> refs/remotes/origin/master
   ];
 
   const initial = user?.name?.[0]?.toUpperCase() || 'U';

@@ -13,6 +13,10 @@ import Analytics from './pages/Analytics';
 import OcrUpload from './pages/OcrUpload';
 import FormBuilder from './pages/FormBuilder';
 import Settings from './pages/Settings';
+<<<<<<< HEAD
+=======
+
+>>>>>>> refs/remotes/origin/master
 import Navbar from './components/Navbar';
 
 export default function App() {
@@ -75,7 +79,12 @@ export default function App() {
     analytics: <Analytics />,
 
     ocr: <OcrUpload />,
+<<<<<<< HEAD
     settings: <Settings user={user} onUserUpdate={setUser} onSessionExpired={handleSessionExpired} />,
+=======
+    settings: <Settings />,
+
+>>>>>>> refs/remotes/origin/master
   };
 
   const now = new Date();

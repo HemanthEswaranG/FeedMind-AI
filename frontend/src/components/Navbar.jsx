@@ -1,6 +1,7 @@
 import React from 'react';
 
 export default function Navbar({ user, dateStr, onNavigate, currentPage }) {
+<<<<<<< HEAD
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   
@@ -15,10 +16,37 @@ export default function Navbar({ user, dateStr, onNavigate, currentPage }) {
 
   const currentTitle = pageTitles[currentPage] || pageTitles.dashboard;
 
+=======
+  
+  const getPageTitle = (page) => {
+    switch (page) {
+      case 'dashboard':
+        return (
+          <>
+            Good morning, <span className="user-highlight" style={{ color: 'var(--cyan)' }}>{user?.name || 'admin'}</span> 👋
+          </>
+        );
+      case 'forms':
+        return 'My Forms';
+      case 'responses':
+        return 'Manage Responses';
+      case 'analytics':
+        return 'Advanced Analytics';
+      case 'ocr':
+        return 'OCR & AI Analysis';
+      case 'settings':
+        return 'Account Settings';
+      default:
+        return 'FeedMind';
+    }
+  };
+
+>>>>>>> refs/remotes/origin/master
   return (
     <div className="navbar">
       <div className="navbar-left">
         <h1 className="nav-greeting">
+<<<<<<< HEAD
           {currentPage === 'dashboard' ? (
             <>
               {greeting}, <span className="user-highlight">{user?.name || 'admin'}</span> 👋
@@ -26,6 +54,9 @@ export default function Navbar({ user, dateStr, onNavigate, currentPage }) {
           ) : (
             currentTitle
           )}
+=======
+          {getPageTitle(currentPage)}
+>>>>>>> refs/remotes/origin/master
         </h1>
       </div>
       <div className="navbar-right">
