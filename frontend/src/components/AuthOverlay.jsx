@@ -1,13 +1,37 @@
 import { useState } from 'react';
+import axios from 'axios';
 
 export default function AuthOverlay({ onLogin }) {
   const [isSignup, setIsSignup] = useState(false);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const doLogin = () => {
-    if (!email || !pass) { alert('Please fill in all fields.'); return; }
-    onLogin({ name: email.split('@')[0], email });
+  const doLogin = async () => {
+    setError('');
+    if (!email || !pass) { setError('Please fill in all fields.'); return; }
+    if (isSignup && (!name || pass !== confirmPass)) {
+      setError('Please provide a name and matching passwords.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (isSignup) {
+        const res = await axios.post('http://localhost:5000/api/auth/register', { name, email, password: pass });
+        onLogin(res.data.user, res.data.token);
+      } else {
+        const res = await axios.post('http://localhost:5000/api/auth/login', { email, password: pass });
+        onLogin(res.data.user, res.data.token);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -27,6 +51,14 @@ export default function AuthOverlay({ onLogin }) {
           <div className="auth-divider-line"></div>
         </div>
 
+        {error && <div style={{ color: '#ef4444', fontSize: '14px', marginBottom: '16px', textAlign: 'center' }}>{error}</div>}
+
+        {isSignup && (
+          <div className="auth-field">
+            <label className="auth-label">Name</label>
+            <input className="auth-input" type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} />
+          </div>
+        )}
         <div className="auth-field">
           <label className="auth-label">Email</label>
           <input className="auth-input" type="email" placeholder="name@example.com" value={email} onChange={e => setEmail(e.target.value)} />
@@ -38,11 +70,11 @@ export default function AuthOverlay({ onLogin }) {
         {isSignup && (
           <div className="auth-field">
             <label className="auth-label">Confirm password</label>
-            <input className="auth-input" type="password" placeholder="Re-enter your password" />
+            <input className="auth-input" type="password" placeholder="Re-enter your password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} />
           </div>
         )}
 
-        <button className="auth-btn" onClick={doLogin}>{isSignup ? 'Create account' : 'Sign in with Email'}</button>
+        <button className="auth-btn" onClick={doLogin} disabled={loading}>{loading ? 'Verifying...' : (isSignup ? 'Create account' : 'Sign in with Email')}</button>
 
         <div className="auth-footer">
           {isSignup

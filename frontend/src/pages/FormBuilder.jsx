@@ -2,59 +2,156 @@ import { useState } from 'react';
 
 const qTypes = ['Short Text', 'Long Text', 'Multiple Choice', 'Checkbox', 'Rating', 'NPS', 'Dropdown', 'Date'];
 const typeIcons = { 'Short Text': 'T', 'Long Text': '¶', 'Multiple Choice': '◎', 'Checkbox': '☑', 'Rating': '★', 'NPS': '📊', 'Dropdown': '▾', 'Date': '📅' };
+const typeHints = {
+  'Short Text': 'Collect one-line responses from users.',
+  'Long Text': 'Allow detailed feedback in paragraph form.',
+  'Multiple Choice': 'Users can select one option from the list.',
+  Checkbox: 'Users can select multiple options.',
+  Rating: 'Capture sentiment on a scale.',
+  NPS: 'Measure recommendation intent.',
+  Dropdown: 'Compact list selection.',
+  Date: 'Capture a specific date from users.'
+};
 
-function QuestionCard({ question, onDelete, onCycleType }) {
+function QuestionCard({ question, index, onDelete, onCycleType, onUpdate }) {
   const isChoice = ['Multiple Choice', 'Checkbox', 'Dropdown'].includes(question.type);
-  const [toggled, setToggled] = useState(false);
+  const [toggled, setToggled] = useState(Boolean(question.required));
+  const [newOption, setNewOption] = useState('');
+
+  const addOption = () => {
+    if (!newOption.trim()) return;
+    const updated = { ...question, options: [...(question.options || []), newOption] };
+    onUpdate(question.id, updated);
+    setNewOption('');
+  };
+
+  const removeOption = (idx) => {
+    const updated = { ...question, options: question.options.filter((_, i) => i !== idx) };
+    onUpdate(question.id, updated);
+  };
+
+  const updateOption = (idx, value) => {
+    const opts = [...question.options];
+    opts[idx] = value;
+    onUpdate(question.id, { ...question, options: opts });
+  };
 
   return (
-    <div className="question-card">
-      <div className="q-header">
-        <div className="q-type-badge" onClick={() => onCycleType(question.id)}>
-          {typeIcons[question.type] || 'T'} {question.type} ▾
+    <div className="question-card" data-number={`${index + 1}.`}>
+      <div className="q-card-content">
+        <div className="q-toolbar">
+          <div className="q-toolbar-left">
+            <span className="q-drag-handle">::</span>
+            <select
+              value={question.type}
+              onChange={(e) => onCycleType(question.id, e.target.value)}
+              className="q-type-select"
+            >
+              {qTypes.map(t => <option key={t} value={t}>{typeIcons[t]} {t}</option>)}
+            </select>
+            {isChoice && <span className="q-add-others">+ Add Others</span>}
+          </div>
+
+          <div className="q-toolbar-right">
+            <div className="q-required">
+              Required
+              <div
+                className={`toggle${toggled ? ' on' : ''}`}
+                onClick={() => {
+                  const next = !toggled;
+                  setToggled(next);
+                  onUpdate(question.id, { ...question, required: next });
+                }}
+              ></div>
+            </div>
+            <div className="q-actions">
+              <button className="q-action-btn" title="Duplicate">+</button>
+              <button className="q-action-btn" onClick={() => onDelete(question.id)} title="Delete">x</button>
+            </div>
+          </div>
         </div>
-        {isChoice && <span style={{ fontSize: 12, color: 'var(--text2)', cursor: 'pointer' }}>+ Add Others</span>}
-        <div className="q-required">
-          Required
-          <div className={`toggle${toggled ? ' on' : ''}`} onClick={() => setToggled(!toggled)}></div>
+
+        <div className="q-body">
+          <input
+            className="q-input"
+            value={question.text}
+            onChange={(e) => onUpdate(question.id, { ...question, text: e.target.value })}
+            placeholder="Write a question..."
+          />
         </div>
-        <div className="q-actions">
-          <button className="q-action-btn" title="Duplicate">⧉</button>
-          <button className="q-action-btn" onClick={() => onDelete(question.id)} title="Delete">✕</button>
-        </div>
+
+        {isChoice && (
+          <div className="q-options-section">
+            {(question.options || []).map((opt, idx) => (
+              <div key={idx} className="q-option-item">
+                <div className="q-option-circle"></div>
+                <input
+                  className="q-option-input"
+                  value={opt}
+                  onChange={(e) => updateOption(idx, e.target.value)}
+                  placeholder={`Option ${idx + 1}`}
+                />
+                <button
+                  className="q-option-remove"
+                  onClick={() => removeOption(idx)}
+                  title="Delete"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            <div className="q-option-add">
+              <div className="q-option-circle"></div>
+              <input
+                className="q-option-input"
+                value={newOption}
+                onChange={(e) => setNewOption(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addOption()}
+                onBlur={addOption}
+                placeholder="Add option..."
+              />
+            </div>
+          </div>
+        )}
       </div>
-      <input className="q-input" defaultValue={question.text} placeholder={`${question.num}. Write a question...`} />
-      {isChoice && (
-        <>
-          <div className="q-option"><div className="q-option-circle"></div><input className="q-option-input" placeholder="Option 1" /></div>
-          <div className="q-option"><div className="q-option-circle"></div><input className="q-option-input" placeholder="Option 2" /></div>
-        </>
-      )}
     </div>
   );
 }
 
 export default function FormBuilder({ onBack }) {
-  const [questions, setQuestions] = useState([]);
-  const [counter, setCounter] = useState(0);
-  const [activePanel, setActivePanel] = useState('settings');
+  const [questions, setQuestions] = useState([
+    { id: 1, num: 1, type: 'Short Text', text: '', options: [], required: false },
+    { id: 2, num: 2, type: 'Multiple Choice', text: '', options: [''], required: false }
+  ]);
+  const [counter, setCounter] = useState(2);
+  const [activePanel, setActivePanel] = useState('ai');
   const [aiPrompt, setAiPrompt] = useState('');
   const [formTitle, setFormTitle] = useState('Untitled form');
+  const quickPrompts = [
+    { key: 'NPS', label: 'Add NPS question' },
+    { key: 'wait', label: 'Ask about wait time' },
+    { key: 'email', label: 'Add email follow-up' },
+    { key: 'more', label: 'Generate 5 more questions' }
+  ];
 
   const addQuestion = (type = 'Short Text', text = '') => {
     const num = counter + 1;
     setCounter(num);
-    setQuestions(prev => [...prev, { id: Date.now(), num, type, text }]);
+    setQuestions(prev => [...prev, { id: Date.now(), num, type, text, options: [] }]);
   };
 
   const deleteQuestion = (id) => setQuestions(prev => prev.filter(q => q.id !== id));
 
-  const cycleType = (id) => {
-    setQuestions(prev => prev.map(q => {
-      if (q.id !== id) return q;
-      const idx = qTypes.indexOf(q.type);
-      return { ...q, type: qTypes[(idx + 1) % qTypes.length] };
-    }));
+  const cycleType = (id, newType) => {
+    setQuestions(prev => prev.map(q =>
+      q.id === id ? { ...q, type: newType } : q
+    ));
+  };
+
+  const updateQuestion = (id, updates) => {
+    setQuestions(prev => prev.map(q =>
+      q.id === id ? { ...q, ...updates } : q
+    ));
   };
 
   const addAIQuestion = (type) => {
@@ -89,34 +186,40 @@ export default function FormBuilder({ onBack }) {
   return (
     <div className="builder-wrapper">
       <div className="builder-header">
-        <button className="builder-back" onClick={onBack}>← Dashboard</button>
+        <button className="builder-back" onClick={onBack}>&larr; Dashboard</button>
         <input className="form-title-input" value={formTitle} onChange={e => setFormTitle(e.target.value)} />
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-ghost btn-sm">💾 Save</button>
-          <button className="btn btn-primary btn-sm">🌐 Publish</button>
+        <div className="builder-header-actions">
+          <button className="btn btn-ghost btn-sm">Save</button>
+          <button className="btn btn-primary btn-sm">Publish</button>
         </div>
       </div>
 
       <div className="builder-layout" style={{ height: 'calc(100vh - 56px)' }}>
         <div className="builder-canvas">
-          <div style={{ maxWidth: 600, margin: '0 auto' }}>
-            <input className="form-title-input" defaultValue="Untitled form" style={{ fontSize: 22, fontWeight: 700, marginBottom: 8, display: 'block', width: '100%' }} />
-            <input className="form-title-input" placeholder="Add a description (optional)..." style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 24, display: 'block', width: '100%' }} />
+          <div className="builder-canvas-inner">
+            <input className="builder-page-title" defaultValue="Untitled form" />
+            <input className="builder-page-desc" placeholder="Add a description (optional)..." />
 
-            {questions.map(q => (
-              <QuestionCard key={q.id} question={q} onDelete={deleteQuestion} onCycleType={cycleType} />
+            {questions.map((q, idx) => (
+              <QuestionCard key={q.id} question={q} index={idx} onDelete={deleteQuestion} onCycleType={cycleType} onUpdate={updateQuestion} />
             ))}
 
-            <div style={{ textAlign: 'center', marginTop: 24 }}>
+            <div className="builder-add-wrap">
               <button className="add-q-btn" onClick={() => addQuestion()}>+ Add Question</button>
             </div>
           </div>
         </div>
 
         <div className="builder-panel">
-          <div className="panel-tabs">
-            <div className={`panel-tab${activePanel === 'settings' ? ' active' : ''}`} onClick={() => setActivePanel('settings')}>⚙ Form Settings</div>
-            <div className={`panel-tab${activePanel === 'ai' ? ' active' : ''}`} onClick={() => setActivePanel('ai')}>✦ AI Suggestion</div>
+          <div className="panel-headings">
+            <button className={`panel-heading${activePanel === 'settings' ? ' active' : ''}`} onClick={() => setActivePanel('settings')}>
+              <span className="panel-heading-icon">✦</span>
+              <span className="panel-heading-text">Form Settings</span>
+            </button>
+            <button className={`panel-heading${activePanel === 'ai' ? ' active' : ''}`} onClick={() => setActivePanel('ai')}>
+              <span className="panel-heading-icon">✦</span>
+              <span className="panel-heading-text">AI Suggestion</span>
+            </button>
           </div>
 
           {activePanel === 'settings' && (
@@ -158,16 +261,17 @@ export default function FormBuilder({ onBack }) {
                   <div className="provider-label">Provider</div>
                   <select className="setting-select" style={{ width: '100%' }}>
                     <option>Gemini</option>
+                    <option>Grok</option>
                     <option>Claude</option>
-                    <option>GPT-4</option>
                   </select>
                 </div>
                 <div className="quick-prompts-label">Quick Prompts</div>
                 <div className="quick-prompts">
-                  <button className="qp-btn" onClick={() => addAIQuestion('NPS')}>Add NPS question</button>
-                  <button className="qp-btn" onClick={() => addAIQuestion('wait')}>Ask about wait time</button>
-                  <button className="qp-btn" onClick={() => addAIQuestion('email')}>Add email follow-up</button>
-                  <button className="qp-btn" onClick={() => addAIQuestion('more')}>Generate 5 more questions</button>
+                  {quickPrompts.map((prompt) => (
+                    <button key={prompt.key} className="qp-btn" onClick={() => addAIQuestion(prompt.key)}>
+                      {prompt.label}
+                    </button>
+                  ))}
                 </div>
                 <div className="ai-input-row">
                   <input className="ai-input" placeholder="e.g. Add a question about pricing." value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendAIPrompt()} />

@@ -1,11 +1,31 @@
 import React from 'react';
 
-export default function Navbar({ user, dateStr, onNavigate }) {
+export default function Navbar({ user, dateStr, onNavigate, currentPage }) {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  
+  const pageTitles = {
+    dashboard: `${greeting}, ${user?.name || 'User'} 👋`,
+    forms: 'Forms',
+    responses: 'Responses',
+    analytics: 'Analytics',
+    ocr: 'OCR Upload',
+    settings: 'Settings',
+  };
+
+  const currentTitle = pageTitles[currentPage] || pageTitles.dashboard;
+
   return (
     <div className="navbar">
       <div className="navbar-left">
         <h1 className="nav-greeting">
-          Good morning, <span className="user-highlight">{user?.name || 'admin'}</span> 👋
+          {currentPage === 'dashboard' ? (
+            <>
+              {greeting}, <span className="user-highlight">{user?.name || 'admin'}</span> 👋
+            </>
+          ) : (
+            currentTitle
+          )}
         </h1>
       </div>
       <div className="navbar-right">
