@@ -1,4 +1,6 @@
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const path = require('path');
 const User = require('../models/User.model');
 
 // ─── Generate JWT ─────────────────────────────────────────
@@ -6,6 +8,25 @@ const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   });
+};
+
+const toPublicUser = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  avatar: user.avatar || '',
+  plan: user.plan,
+  workspace: user.workspace,
+  responsesUsed: user.responsesUsed,
+  responsesLimit: user.responsesLimit,
+});
+
+const removeLocalAvatarIfExists = (avatarPath) => {
+  if (!avatarPath || !avatarPath.startsWith('/uploads/avatars/')) return;
+  const absolutePath = path.join(__dirname, '..', avatarPath.replace(/^\//, ''));
+  if (fs.existsSync(absolutePath)) {
+    fs.unlinkSync(absolutePath);
+  }
 };
 
 // ─── POST /api/auth/register ──────────────────────────────
@@ -28,15 +49,7 @@ exports.register = async (req, res) => {
     res.status(201).json({
       success: true,
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        plan: user.plan,
-        workspace: user.workspace,
-        responsesUsed: user.responsesUsed,
-        responsesLimit: user.responsesLimit,
-      },
+      user: toPublicUser(user),
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -62,15 +75,7 @@ exports.login = async (req, res) => {
     res.json({
       success: true,
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        plan: user.plan,
-        workspace: user.workspace,
-        responsesUsed: user.responsesUsed,
-        responsesLimit: user.responsesLimit,
-      },
+      user: toPublicUser(user),
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -81,7 +86,7 @@ exports.login = async (req, res) => {
 exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    res.json({ success: true, user });
+    res.json({ success: true, user: toPublicUser(user) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -101,9 +106,58 @@ exports.googleAuth = async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: user._id, name: user.name, email: user.email, plan: user.plan },
+      user: toPublicUser(user),
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─── POST /api/auth/me/avatar ────────────────────────────
+exports.uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No avatar image uploaded' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    removeLocalAvatarIfExists(user.avatar);
+
+    user.avatar = `/uploads/avatars/${req.file.filename}`;
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: 'Profile photo updated',
+      user: toPublicUser(user),
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─── DELETE /api/auth/me/avatar ──────────────────────────
+exports.removeAvatar = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    removeLocalAvatarIfExists(user.avatar);
+    user.avatar = '';
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: 'Profile photo removed',
+      user: toPublicUser(user),
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
