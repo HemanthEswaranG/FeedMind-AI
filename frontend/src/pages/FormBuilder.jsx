@@ -1,7 +1,8 @@
-import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
+import apiClient from '../api/apiClient';
 
 const qTypes = ['Short Text', 'Long Text', 'Multiple Choice', 'Checkbox', 'Rating', 'NPS', 'Dropdown', 'Date'];
-const typeIcons = { 'Short Text': 'T', 'Long Text': '¶', 'Multiple Choice': '◎', 'Checkbox': '☑', 'Rating': '★', 'NPS': '📊', 'Dropdown': '▾', 'Date': '📅' };
+const typeIcons = { 'Short Text': 'T', 'Long Text': 'Â¶', 'Multiple Choice': 'â—Ž', 'Checkbox': 'â˜‘', 'Rating': 'â˜…', 'NPS': 'ðŸ“Š', 'Dropdown': 'â–¾', 'Date': 'ðŸ“…' };
 const typeHints = {
   'Short Text': 'Collect one-line responses from users.',
   'Long Text': 'Allow detailed feedback in paragraph form.',
@@ -96,7 +97,7 @@ function QuestionCard({ question, index, onDelete, onCycleType, onUpdate }) {
                   onClick={() => removeOption(idx)}
                   title="Delete"
                 >
-                  ✕
+                  âœ•
                 </button>
               </div>
             ))}
@@ -118,7 +119,7 @@ function QuestionCard({ question, index, onDelete, onCycleType, onUpdate }) {
   );
 }
 
-export default function FormBuilder({ onBack }) {
+export default function FormBuilder({ onBack, formId = null }) {
   const [questions, setQuestions] = useState([
     { id: 1, num: 1, type: 'Short Text', text: '', options: [], required: false },
     { id: 2, num: 2, type: 'Multiple Choice', text: '', options: [''], required: false }
@@ -126,7 +127,15 @@ export default function FormBuilder({ onBack }) {
   const [counter, setCounter] = useState(2);
   const [activePanel, setActivePanel] = useState('ai');
   const [aiPrompt, setAiPrompt] = useState('');
+  const [generatingQuestions, setGeneratingQuestions] = useState(false);
   const [formTitle, setFormTitle] = useState('Untitled form');
+  const [formDescription, setFormDescription] = useState('');
+  const [formId_state, setFormId] = useState(formId);
+  const [shareLink, setShareLink] = useState(null);
+  const [isPublished, setIsPublished] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+
   const quickPrompts = [
     { key: 'NPS', label: 'Add NPS question' },
     { key: 'wait', label: 'Ask about wait time' },
@@ -169,11 +178,124 @@ export default function FormBuilder({ onBack }) {
     if (p) addQuestion(p.t, p.q);
   };
 
-  const sendAIPrompt = () => {
+  const sendAIPrompt = async () => {
     const txt = aiPrompt.trim();
     if (!txt) return;
-    addQuestion('Short Text', txt + '?');
-    setAiPrompt('');
+
+    setGeneratingQuestions(true);
+    try {
+      const { data } = await apiClient.post('/ai/generate-questions', {
+        selectedSuggestion: txt
+      });
+
+      if (data.questions && Array.isArray(data.questions)) {
+        data.questions.forEach((q) => {
+          const fieldTypeMap = {
+            'text': 'Short Text',
+            'number': 'Short Text',
+            'date': 'Date',
+            'dropdown': 'Dropdown',
+          };
+          const formType = fieldTypeMap[q.fieldType] || 'Short Text';
+          const label = q.label || q;
+          addQuestion(formType, label);
+        });
+        setAiPrompt('');
+      }
+    } catch (err) {
+      console.error('Question generation failed:', err);
+
+      const errorCode = err.response?.data?.code;
+      const errorMsg = err.response?.data?.error;
+
+      if (errorCode === 'NO_TRAINED_DATA' || errorCode === 'INSUFFICIENT_DATA' || errorCode === 'NO_RELEVANCE' || errorCode === 'NO_QUESTIONS_GENERATED') {
+        const message = errorMsg || 'There is no information about the given topic in the prompt. It requires more information.';
+        alert(`${message}\n\nPlease go to the Data Upload page to train more relevant data.`);
+      } else {
+        alert('Failed to generate questions. Please check your training data and try again.');
+      }
+    } finally {
+      setGeneratingQuestions(false);
+    }
+  };
+
+  const saveForm = async () => {
+    setSaving(true);
+    try {
+      // Format questions for API - remove 'num' field and ensure proper structure
+      const formattedQuestions = questions.map(q => ({
+        id: String(q.id),
+        type: q.type,
+        text: q.text || '',
+        required: q.required || false,
+        options: q.options || [],
+        order: q.num - 1
+      }));
+
+      const formData = {
+        title: formTitle || 'Untitled form',
+        description: formDescription,
+        questions: formattedQuestions,
+        status: 'draft',
+        settings: {
+          multipleResponses: true,
+          collectEmail: 'none',
+          showProgressBar: true,
+          shuffleQuestions: false,
+          restrictExtension: true,
+          emailOnSubmission: true,
+          slackWebhook: false,
+          thankYouMessage: 'Thank you for your feedback! We really appreciate it.',
+          redirectUrl: ''
+        }
+      };
+
+      console.log('Saving form:', formData);
+
+      if (formId_state) {
+        // Update existing form
+        const response = await apiClient.put(`/forms/${formId_state}`, formData);
+        console.log('Update response:', response.data);
+        alert('Form saved to drafts!');
+      } else {
+        // Create new form
+        const response = await apiClient.post('/forms', formData);
+        console.log('Create response:', response.data);
+        setFormId(response.data.form._id);
+        alert('Form saved to drafts!');
+      }
+    } catch (err) {
+      console.error('Save failed - Full error:', err);
+      console.error('Error response:', err.response?.data);
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to save form. Please try again.';
+      alert(errorMsg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const publishForm = async () => {
+    if (!formId_state) {
+      alert('Please save the form first before publishing');
+      return;
+    }
+
+    setPublishing(true);
+    try {
+      const { data } = await apiClient.patch(`/forms/${formId_state}/publish`);
+      setIsPublished(true);
+      setShareLink(data.form.shareLink);
+      const publicLink = `${window.location.origin}/share/${data.form.shareLink}`;
+
+      // Copy link to clipboard automatically
+      await navigator.clipboard.writeText(publicLink);
+      alert('Form published! Share link copied to clipboard.');
+    } catch (err) {
+      console.error('Publish failed:', err);
+      alert('Failed to publish form. Please try again.');
+    } finally {
+      setPublishing(false);
+    }
   };
 
   const [s1, setS1] = useState(true);
@@ -186,19 +308,19 @@ export default function FormBuilder({ onBack }) {
   return (
     <div className="builder-wrapper">
       <div className="builder-header">
-        <button className="builder-back" onClick={onBack}>&larr; Dashboard</button>
+        <button className="builder-back" onClick={onBack}>&larr; My Forms</button>
         <input className="form-title-input" value={formTitle} onChange={e => setFormTitle(e.target.value)} />
         <div className="builder-header-actions">
-          <button className="btn btn-ghost btn-sm">Save</button>
-          <button className="btn btn-primary btn-sm">Publish</button>
+          <button className="btn btn-ghost btn-sm" onClick={saveForm} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+          <button className="btn btn-primary btn-sm" onClick={publishForm} disabled={publishing || !formId_state}>{publishing ? 'Publishing...' : 'Publish'}</button>
         </div>
       </div>
 
       <div className="builder-layout" style={{ height: 'calc(100vh - 56px)' }}>
         <div className="builder-canvas">
           <div className="builder-canvas-inner">
-            <input className="builder-page-title" defaultValue="Untitled form" />
-            <input className="builder-page-desc" placeholder="Add a description (optional)..." />
+            <input className="builder-page-title" value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Form title" />
+            <input className="builder-page-desc" value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Add a description (optional)..." />
 
             {questions.map((q, idx) => (
               <QuestionCard key={q.id} question={q} index={idx} onDelete={deleteQuestion} onCycleType={cycleType} onUpdate={updateQuestion} />
@@ -213,11 +335,11 @@ export default function FormBuilder({ onBack }) {
         <div className="builder-panel">
           <div className="panel-headings">
             <button className={`panel-heading${activePanel === 'settings' ? ' active' : ''}`} onClick={() => setActivePanel('settings')}>
-              <span className="panel-heading-icon">✦</span>
+              <span className="panel-heading-icon">âœ¦</span>
               <span className="panel-heading-text">Form Settings</span>
             </button>
             <button className={`panel-heading${activePanel === 'ai' ? ' active' : ''}`} onClick={() => setActivePanel('ai')}>
-              <span className="panel-heading-icon">✦</span>
+              <span className="panel-heading-icon">âœ¦</span>
               <span className="panel-heading-text">AI Suggestion</span>
             </button>
           </div>
@@ -256,7 +378,7 @@ export default function FormBuilder({ onBack }) {
           {activePanel === 'ai' && (
             <div className="panel-body">
               <div className="ai-panel">
-                <div className="ai-bubble">Hi! I can help you generate questions. What is your survey about?</div>
+                <div className="ai-bubble">Hi! I can help you generate questions based on your training data. Select data and tell me what you need.</div>
                 <div className="provider-row">
                   <div className="provider-label">Provider</div>
                   <select className="setting-select" style={{ width: '100%' }}>
@@ -274,8 +396,22 @@ export default function FormBuilder({ onBack }) {
                   ))}
                 </div>
                 <div className="ai-input-row">
-                  <input className="ai-input" placeholder="e.g. Add a question about pricing." value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendAIPrompt()} />
-                  <button className="ai-send" onClick={sendAIPrompt}>➤</button>
+                  <input
+                    className="ai-input"
+                    placeholder="e.g. Customer satisfaction, product quality feedback"
+                    value={aiPrompt}
+                    onChange={e => setAiPrompt(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && sendAIPrompt()}
+                    disabled={generatingQuestions}
+                  />
+                  <button
+                    className="ai-send"
+                    onClick={sendAIPrompt}
+                    disabled={generatingQuestions}
+                    style={{ opacity: generatingQuestions ? 0.6 : 1, cursor: generatingQuestions ? 'not-allowed' : 'pointer' }}
+                  >
+                    {generatingQuestions ? 'â³' : 'âž¤'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -285,3 +421,5 @@ export default function FormBuilder({ onBack }) {
     </div>
   );
 }
+
+

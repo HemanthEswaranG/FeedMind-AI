@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import './index.css';
 import './App.css';
 
+import apiClient from './api/apiClient';
 import AuthOverlay from './components/AuthOverlay';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
@@ -13,10 +13,6 @@ import Analytics from './pages/Analytics';
 import OcrUpload from './pages/OcrUpload';
 import FormBuilder from './pages/FormBuilder';
 import Settings from './pages/Settings';
-<<<<<<< HEAD
-=======
-
->>>>>>> refs/remotes/origin/master
 import Navbar from './components/Navbar';
 
 export default function App() {
@@ -27,9 +23,7 @@ export default function App() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      axios.get('http://localhost:5000/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      apiClient.get('/auth/me')
       .then(res => {
         setUser(res.data.user);
         setLoading(false);
@@ -79,12 +73,7 @@ export default function App() {
     analytics: <Analytics />,
 
     ocr: <OcrUpload />,
-<<<<<<< HEAD
     settings: <Settings user={user} onUserUpdate={setUser} onSessionExpired={handleSessionExpired} />,
-=======
-    settings: <Settings />,
-
->>>>>>> refs/remotes/origin/master
   };
 
   const now = new Date();

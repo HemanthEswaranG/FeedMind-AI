@@ -32,22 +32,12 @@ const Icons = {
       <path d="M3 20h18" />
     </svg>
   ),
-<<<<<<< HEAD
-=======
-
->>>>>>> refs/remotes/origin/master
   OCR: () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
       <path d="M7 10h10" />
       <path d="M7 14h10" />
       <path d="M10 7v10" />
-    </svg>
-  ),
-  Settings: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-      <circle cx="12" cy="12" r="3" />
     </svg>
   ),
 };
@@ -58,20 +48,7 @@ export default function Sidebar({ currentPage, onNavigate, user }) {
     { id: 'forms', icon: <Icons.Forms />, label: 'My Forms' },
     { id: 'responses', icon: <Icons.Responses />, label: 'Responses' },
     { id: 'analytics', icon: <Icons.Analytics />, label: 'Analytics', badge: 'Beta' },
-<<<<<<< HEAD
-=======
-
->>>>>>> refs/remotes/origin/master
-    { id: 'ocr', icon: <Icons.OCR />, label: 'OCR Upload' },
-  ];
-
-  const accountItems = [
-<<<<<<< HEAD
-    { id: 'settings', icon: <Icons.Settings />, label: 'Settings' }
-=======
-    { id: 'settings', icon: <Icons.Settings />, label: 'Settings' },
-
->>>>>>> refs/remotes/origin/master
+    { id: 'ocr', icon: <Icons.OCR />, label: 'Data Upload' },
   ];
 
   const initial = user?.name?.[0]?.toUpperCase() || 'U';
@@ -101,20 +78,6 @@ export default function Sidebar({ currentPage, onNavigate, user }) {
         ))}
       </div>
 
-      <div className="sidebar-section">
-        <div className="sidebar-section-label">Account</div>
-        {accountItems.map(item => (
-          <div
-            key={item.id}
-            className={`nav-item${currentPage === item.id ? ' active' : ''}`}
-            onClick={() => onNavigate(item.id)}
-          >
-            <span className="icon">{item.icon}</span>
-            {item.label}
-          </div>
-        ))}
-      </div>
-
       <div className="sidebar-bottom">
         <div className="responses-bar">
           <div className="responses-bar-label">
@@ -125,7 +88,7 @@ export default function Sidebar({ currentPage, onNavigate, user }) {
             <div className="bar-fill" style={{ width: '0%' }}></div>
           </div>
         </div>
-        <div className="user-row">
+        <div className="user-row" onClick={() => onNavigate('settings')} style={{ cursor: 'pointer' }}>
           <div className="user-avatar">
             {avatarSrc ? <img src={avatarSrc} alt="Profile" className="avatar-image" /> : initial}
           </div>
@@ -133,7 +96,18 @@ export default function Sidebar({ currentPage, onNavigate, user }) {
             <div className="user-name">{user?.name || 'User'}</div>
             <div className="user-email">{user?.email || 'user@example.com'}</div>
           </div>
-          <span style={{ color: 'var(--text3)', fontSize: 16, marginLeft: 'auto' }}>⇌</span>
+          <button
+            className="btn btn-ghost"
+            style={{ marginLeft: 'auto', fontSize: 14, padding: '4px 8px' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              localStorage.removeItem('token');
+              window.location.reload();
+            }}
+            title="Logout"
+          >
+            ⇐ Logout
+          </button>
         </div>
       </div>
     </div>

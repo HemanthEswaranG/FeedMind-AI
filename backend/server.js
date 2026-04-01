@@ -12,6 +12,7 @@ const responseRoutes = require('./routes/response.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
 const uploadRoutes = require('./routes/upload.routes');
 const ocrRoutes = require('./routes/ocr.routes');
+const aiRoutes = require('./routes/ai.routes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -36,6 +37,7 @@ app.use('/api/responses', responseRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/ocr', ocrRoutes);
+app.use('/api/ai', aiRoutes);
 
 // ─── Health Check ─────────────────────────────────────────
 app.get('/api/health', (req, res) => {

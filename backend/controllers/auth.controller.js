@@ -85,7 +85,7 @@ exports.login = async (req, res) => {
 // ─── GET /api/auth/me ─────────────────────────────────────
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user._id);
     res.json({ success: true, user: toPublicUser(user) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -129,22 +129,8 @@ exports.googleAuth = async (req, res) => {
 
     res.json({
       success: true,
-<<<<<<< HEAD
-      token,
-      user: toPublicUser(user),
-=======
       token: jwtToken,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        plan: user.plan,
-        avatar: user.avatar,
-        workspace: user.workspace,
-        responsesUsed: user.responsesUsed,
-        responsesLimit: user.responsesLimit,
-      },
->>>>>>> refs/remotes/origin/master
+      user: toPublicUser(user),
     });
   } catch (err) {
     console.error('Google Auth Error:', err);
@@ -159,7 +145,7 @@ exports.uploadAvatar = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No avatar image uploaded' });
     }
 
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -182,7 +168,7 @@ exports.uploadAvatar = async (req, res) => {
 // ─── DELETE /api/auth/me/avatar ──────────────────────────
 exports.removeAvatar = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }

@@ -1,30 +1,11 @@
 import { useState } from 'react';
-<<<<<<< HEAD
-import axios from 'axios';
-=======
 import { useGoogleLogin } from '@react-oauth/google';
-import axios from 'axios';
-
-// API Configuration
-const API_URL = 'http://localhost:5000/api/auth';
->>>>>>> refs/remotes/origin/master
+import apiClient from '../api/apiClient';
 
 export default function AuthOverlay({ onLogin }) {
   const [isSignup, setIsSignup] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-<<<<<<< HEAD
-  const [pass, setPass] = useState('');
-  const [confirmPass, setConfirmPass] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const doLogin = async () => {
-    setError('');
-    if (!email || !pass) { setError('Please fill in all fields.'); return; }
-    if (isSignup && (!name || pass !== confirmPass)) {
-      setError('Please provide a name and matching passwords.');
-=======
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -32,28 +13,15 @@ export default function AuthOverlay({ onLogin }) {
   const handleAuth = async () => {
     if (!email || !password || (isSignup && !name)) {
       setError('Please fill in all required fields.');
->>>>>>> refs/remotes/origin/master
       return;
     }
 
     setLoading(true);
-<<<<<<< HEAD
-    try {
-      if (isSignup) {
-        const res = await axios.post('http://localhost:5000/api/auth/register', { name, email, password: pass });
-        onLogin(res.data.user, res.data.token);
-      } else {
-        const res = await axios.post('http://localhost:5000/api/auth/login', { email, password: pass });
-        onLogin(res.data.user, res.data.token);
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Authentication failed');
-=======
     setError(null);
     try {
-      const endpoint = isSignup ? '/register' : '/login';
+      const endpoint = isSignup ? '/auth/register' : '/auth/login';
       const body = isSignup ? { name, email, password } : { email, password };
-      const res = await axios.post(`${API_URL}${endpoint}`, body);
+      const res = await apiClient.post(endpoint, body);
       
       if (res.data.success) {
         localStorage.setItem('token', res.data.token);
@@ -61,7 +29,6 @@ export default function AuthOverlay({ onLogin }) {
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Authentication failed. Please try again.');
->>>>>>> refs/remotes/origin/master
     } finally {
       setLoading(false);
     }
@@ -72,7 +39,7 @@ export default function AuthOverlay({ onLogin }) {
       setLoading(true);
       setError(null);
       try {
-        const res = await axios.post(`${API_URL}/google`, { token: response.access_token });
+        const res = await apiClient.post('/auth/google', { token: response.access_token });
         if (res.data.success) {
           localStorage.setItem('token', res.data.token);
           onLogin(res.data.user);
@@ -109,32 +76,6 @@ export default function AuthOverlay({ onLogin }) {
           <div className="auth-divider-line"></div>
         </div>
 
-<<<<<<< HEAD
-        {error && <div style={{ color: '#ef4444', fontSize: '14px', marginBottom: '16px', textAlign: 'center' }}>{error}</div>}
-
-        {isSignup && (
-          <div className="auth-field">
-            <label className="auth-label">Name</label>
-            <input className="auth-input" type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} />
-          </div>
-        )}
-        <div className="auth-field">
-          <label className="auth-label">Email</label>
-          <input className="auth-input" type="email" placeholder="name@example.com" value={email} onChange={e => setEmail(e.target.value)} />
-        </div>
-        <div className="auth-field">
-          <label className="auth-label">Password</label>
-          <input className="auth-input" type="password" placeholder="Enter your password" value={pass} onChange={e => setPass(e.target.value)} />
-        </div>
-        {isSignup && (
-          <div className="auth-field">
-            <label className="auth-label">Confirm password</label>
-            <input className="auth-input" type="password" placeholder="Re-enter your password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} />
-          </div>
-        )}
-
-        <button className="auth-btn" onClick={doLogin} disabled={loading}>{loading ? 'Verifying...' : (isSignup ? 'Create account' : 'Sign in with Email')}</button>
-=======
         {isSignup && (
           <div className="auth-field">
             <label className="auth-label">Full Name</label>
@@ -168,7 +109,6 @@ export default function AuthOverlay({ onLogin }) {
             onChange={e => setPassword(e.target.value)} 
           />
         </div>
->>>>>>> refs/remotes/origin/master
 
         <button className="auth-btn" onClick={handleAuth} disabled={loading} style={{ marginTop: 10 }}>
           {loading ? 'Processing...' : (isSignup ? 'Register' : 'Sign In')}

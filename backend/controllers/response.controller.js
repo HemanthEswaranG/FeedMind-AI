@@ -6,7 +6,7 @@ const User = require('../models/User.model');
 exports.getResponses = async (req, res) => {
   try {
     const { formId, status, sentiment, search, sort = '-createdAt' } = req.query;
-    const filter = { owner: req.user.id };
+    const filter = { owner: req.user._id };
 
     if (formId) filter.form = formId;
     if (status) filter.status = status;
@@ -18,12 +18,12 @@ exports.getResponses = async (req, res) => {
       .lean();
 
     const stats = {
-      total: await Response.countDocuments({ owner: req.user.id }),
-      valid: await Response.countDocuments({ owner: req.user.id, status: 'valid' }),
-      spam: await Response.countDocuments({ owner: req.user.id, status: 'spam' }),
-      flagged: await Response.countDocuments({ owner: req.user.id, status: 'flagged' }),
-      positive: await Response.countDocuments({ owner: req.user.id, sentiment: 'positive' }),
-      negative: await Response.countDocuments({ owner: req.user.id, sentiment: 'negative' }),
+      total: await Response.countDocuments({ owner: req.user._id }),
+      valid: await Response.countDocuments({ owner: req.user._id, status: 'valid' }),
+      spam: await Response.countDocuments({ owner: req.user._id, status: 'spam' }),
+      flagged: await Response.countDocuments({ owner: req.user._id, status: 'flagged' }),
+      positive: await Response.countDocuments({ owner: req.user._id, sentiment: 'positive' }),
+      negative: await Response.countDocuments({ owner: req.user._id, sentiment: 'negative' }),
     };
 
     res.json({ success: true, responses, stats });
@@ -64,7 +64,7 @@ exports.submitResponse = async (req, res) => {
 // ─── GET /api/responses/:id ───────────────────────────────
 exports.getResponse = async (req, res) => {
   try {
-    const response = await Response.findOne({ _id: req.params.id, owner: req.user.id })
+    const response = await Response.findOne({ _id: req.params.id, owner: req.user._id })
       .populate('form', 'title questions');
     if (!response) return res.status(404).json({ success: false, message: 'Response not found' });
     res.json({ success: true, response });
@@ -76,7 +76,7 @@ exports.getResponse = async (req, res) => {
 // ─── DELETE /api/responses/:id ────────────────────────────
 exports.deleteResponse = async (req, res) => {
   try {
-    const response = await Response.findOneAndDelete({ _id: req.params.id, owner: req.user.id });
+    const response = await Response.findOneAndDelete({ _id: req.params.id, owner: req.user._id });
     if (!response) return res.status(404).json({ success: false, message: 'Response not found' });
     res.json({ success: true, message: 'Response deleted' });
   } catch (err) {
@@ -89,7 +89,7 @@ exports.updateResponseStatus = async (req, res) => {
   try {
     const { status } = req.body;
     const response = await Response.findOneAndUpdate(
-      { _id: req.params.id, owner: req.user.id },
+      { _id: req.params.id, owner: req.user._id },
       { status },
       { new: true }
     );
@@ -104,7 +104,7 @@ exports.updateResponseStatus = async (req, res) => {
 exports.exportResponses = async (req, res) => {
   try {
     const { formId, format = 'json' } = req.query;
-    const filter = { owner: req.user.id };
+    const filter = { owner: req.user._id };
     if (formId) filter.form = formId;
 
     const responses = await Response.find(filter).populate('form', 'title').lean();

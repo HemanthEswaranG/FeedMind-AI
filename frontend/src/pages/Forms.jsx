@@ -8,33 +8,10 @@ export default function Forms({ onNavigate }) {
       <div className="forms-header">
         <div className="forms-header-top">
           <h1 className="page-title">My Forms</h1>
-          <p className="page-subtitle">0 forms · 0 published · 0 drafts · 0 responses</p>
-        </div>
-        <div className="forms-actions-row">
-          <button className="btn btn-ghost action-btn">
-            <span className="icon">🗑</span> Bin
-          </button>
           <button className="btn btn-ghost action-btn">
             <span className="icon">↗</span> Share a form
           </button>
-          <button className="btn btn-primary create-form-btn" onClick={() => onNavigate('builder')}>
-            <span className="icon">+</span> Create Form
-          </button>
         </div>
-      </div>
-
-      <div className="forms-stats">
-        {[
-          { dot: 'var(--cyan)', label: 'Total forms', val: 0 },
-          { dot: 'var(--green)', label: 'Published', val: 0 },
-          { dot: 'var(--yellow)', label: 'Drafts', val: 0 },
-          { dot: 'var(--red)', label: 'Spam flags', val: 0 },
-        ].map((s, i) => (
-          <div className="forms-stat" key={i}>
-            <div className="fs-label"><div className="fs-dot" style={{ background: s.dot }}></div>{s.label}</div>
-            <div className="fs-val">{s.val}</div>
-          </div>
-        ))}
       </div>
 
       <div className="forms-filter-row">

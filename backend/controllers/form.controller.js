@@ -5,14 +5,14 @@ const { v4: uuidv4 } = require('uuid');
 exports.getForms = async (req, res) => {
   try {
     const { status, search, sort = '-createdAt' } = req.query;
-    const filter = { owner: req.user.id };
+    const filter = { owner: req.user._id };
     if (status) filter.status = status;
     if (search) filter.title = { $regex: search, $options: 'i' };
 
     const forms = await Form.find(filter).sort(sort).lean();
-    const total = await Form.countDocuments({ owner: req.user.id });
-    const published = await Form.countDocuments({ owner: req.user.id, status: 'published' });
-    const drafts = await Form.countDocuments({ owner: req.user.id, status: 'draft' });
+    const total = await Form.countDocuments({ owner: req.user._id });
+    const published = await Form.countDocuments({ owner: req.user._id, status: 'published' });
+    const drafts = await Form.countDocuments({ owner: req.user._id, status: 'draft' });
 
     res.json({ success: true, forms, stats: { total, published, drafts } });
   } catch (err) {
@@ -23,7 +23,7 @@ exports.getForms = async (req, res) => {
 // ─── POST /api/forms ──────────────────────────────────────
 exports.createForm = async (req, res) => {
   try {
-    const form = await Form.create({ ...req.body, owner: req.user.id, shareLink: uuidv4() });
+    const form = await Form.create({ ...req.body, owner: req.user._id, shareLink: uuidv4() });
     res.status(201).json({ success: true, form });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -33,7 +33,7 @@ exports.createForm = async (req, res) => {
 // ─── GET /api/forms/:id ───────────────────────────────────
 exports.getForm = async (req, res) => {
   try {
-    const form = await Form.findOne({ _id: req.params.id, owner: req.user.id });
+    const form = await Form.findOne({ _id: req.params.id, owner: req.user._id });
     if (!form) return res.status(404).json({ success: false, message: 'Form not found' });
     res.json({ success: true, form });
   } catch (err) {
@@ -45,7 +45,7 @@ exports.getForm = async (req, res) => {
 exports.updateForm = async (req, res) => {
   try {
     const form = await Form.findOneAndUpdate(
-      { _id: req.params.id, owner: req.user.id },
+      { _id: req.params.id, owner: req.user._id },
       req.body,
       { new: true, runValidators: true }
     );
@@ -59,7 +59,7 @@ exports.updateForm = async (req, res) => {
 // ─── DELETE /api/forms/:id ────────────────────────────────
 exports.deleteForm = async (req, res) => {
   try {
-    const form = await Form.findOneAndDelete({ _id: req.params.id, owner: req.user.id });
+    const form = await Form.findOneAndDelete({ _id: req.params.id, owner: req.user._id });
     if (!form) return res.status(404).json({ success: false, message: 'Form not found' });
     res.json({ success: true, message: 'Form deleted successfully' });
   } catch (err) {
@@ -71,7 +71,7 @@ exports.deleteForm = async (req, res) => {
 exports.publishForm = async (req, res) => {
   try {
     const form = await Form.findOneAndUpdate(
-      { _id: req.params.id, owner: req.user.id },
+      { _id: req.params.id, owner: req.user._id },
       { status: 'published' },
       { new: true }
     );
