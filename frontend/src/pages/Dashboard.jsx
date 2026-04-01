@@ -54,8 +54,11 @@ export default function Dashboard({ user, onNavigate }) {
           apiClient.get('/analytics/overview')
         ]);
 
-        if (formsRes.data) {
-          const formsData = formsRes.data;
+        console.log('Forms Response:', formsRes.data);
+        console.log('Analytics Response:', overviewRes.data);
+
+        if (formsRes.data?.forms) {
+          const formsData = formsRes.data.forms;
           const formsList = [
             { id: 'overall', name: 'Overall', icon: '📊' },
             ...formsData.map(f => ({ id: f._id, name: f.title, icon: '📝' }))
@@ -65,6 +68,7 @@ export default function Dashboard({ user, onNavigate }) {
 
         if (overviewRes.data?.data) {
           const data = overviewRes.data.data;
+          console.log('Setting stats:', data);
           setStats({
             totalForms: data.forms.total,
             publishedForms: data.forms.published,
