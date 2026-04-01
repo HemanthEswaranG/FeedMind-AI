@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient';
+import ShareLinkModal from '../components/ShareLinkModal';
 
 const qTypes = ['Short Text', 'Long Text', 'Multiple Choice', 'Checkbox', 'Rating', 'NPS', 'Dropdown', 'Date'];
 const typeIcons = { 'Short Text': 'T', 'Long Text': 'Â¶', 'Multiple Choice': 'â—Ž', 'Checkbox': 'â˜‘', 'Rating': 'â˜…', 'NPS': 'ðŸ“Š', 'Dropdown': 'â–¾', 'Date': 'ðŸ“…' };
@@ -135,6 +136,8 @@ export default function FormBuilder({ onBack, formId = null }) {
   const [isPublished, setIsPublished] = useState(false);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [publishedForm, setPublishedForm] = useState(null);
 
   const quickPrompts = [
     { key: 'NPS', label: 'Add NPS question' },
@@ -285,11 +288,8 @@ export default function FormBuilder({ onBack, formId = null }) {
       const { data } = await apiClient.patch(`/forms/${formId_state}/publish`);
       setIsPublished(true);
       setShareLink(data.form.shareLink);
-      const publicLink = `${window.location.origin}/share/${data.form.shareLink}`;
-
-      // Copy link to clipboard automatically
-      await navigator.clipboard.writeText(publicLink);
-      alert('Form published! Share link copied to clipboard.');
+      setPublishedForm(data.form);
+      setShowShareModal(true);
     } catch (err) {
       console.error('Publish failed:', err);
       alert('Failed to publish form. Please try again.');
@@ -304,6 +304,17 @@ export default function FormBuilder({ onBack, formId = null }) {
   const [s4, setS4] = useState(true);
   const [s5, setS5] = useState(true);
   const [s6, setS6] = useState(false);
+
+  const handleViewResponses = () => {
+    setShowShareModal(false);
+    // Close builder and navigate to responses page
+    onBack();
+    // Trigger navigation after returning to main app
+    setTimeout(() => {
+      window.location.hash = '#responses';
+      window.location.reload();
+    }, 100);
+  };
 
   return (
     <div className="builder-wrapper">
@@ -418,6 +429,10 @@ export default function FormBuilder({ onBack, formId = null }) {
           )}
         </div>
       </div>
+
+      {showShareModal && publishedForm && (
+        <ShareLinkModal form={publishedForm} onClose={() => setShowShareModal(false)} onViewResponses={handleViewResponses} />
+      )}
     </div>
   );
 }
