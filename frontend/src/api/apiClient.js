@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+// Use Render backend URL in production, fallback to local in development
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: API_BASE_URL,
   timeout: 10000,
 });
 
@@ -23,8 +27,7 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       const token = localStorage.getItem('token');
-      // Only redirect if user had a valid token (session expired)
-      // Don't redirect during login attempts where 401 is an auth error
+
       if (token) {
         localStorage.removeItem('token');
         window.location.href = '/';

@@ -93,12 +93,7 @@ export default function Responses() {
   return (
     <div className="page">
       <div className="page-header">
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>SUBMISSIONS</div>
-          <div className="page-title">Responses</div>
-          <div className="page-subtitle">{stats.total} total · {stats.valid} valid · {stats.spam} spam · live sentiment insights</div>
-        </div>
-        <button className="btn btn-ghost btn-sm" disabled>↓ Export CSV</button>
+        <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} disabled>↓ Export CSV</button>
       </div>
 
       <div className="resp-stats">

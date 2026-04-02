@@ -316,9 +316,6 @@ export default function Forms({ onNavigate }) {
   return (
     <div className="forms-view fm-page">
       <header className="fm-header">
-        <div className="fm-header-text">
-          <h1 className="fm-title">My forms</h1>
-        </div>
         <div className="fm-header-tabs">
           <div className="fm-tabs-shell">
             <div className="fm-tabs" role="tablist" aria-label="Form filters">

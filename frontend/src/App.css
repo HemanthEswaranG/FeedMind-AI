@@ -2154,22 +2154,14 @@
 
 .fm-header {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
 }
 
-.fm-header-text {
-  display: flex;
-  align-items: center;
-}
-
-.fm-title { font-size: 28px; font-weight: 800; line-height: 1.1; margin: 0; color: #fff; }
-.fm-subtitle { display: none; }
-
 .fm-header-tabs {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   min-width: 0;
 }
 
