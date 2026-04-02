@@ -1,8 +1,13 @@
 import axios from 'axios';
 
 // Use Render backend URL in production, fallback to local in development
-const API_BASE_URL =
+let API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+// Ensure /api suffix exists
+if (!API_BASE_URL.endsWith('/api')) {
+   API_BASE_URL = API_BASE_URL.replace(/\/$/, '') + '/api';
+}
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
