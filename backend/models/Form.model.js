@@ -10,6 +10,7 @@ const questionSchema = new mongoose.Schema({
   text: { type: String, required: true },
   required: { type: Boolean, default: false },
   options: [{ type: String }],
+  allowOther: { type: Boolean, default: false },
   order: { type: Number, default: 0 },
 });
 

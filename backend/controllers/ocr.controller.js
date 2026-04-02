@@ -4,6 +4,7 @@ const Tesseract = require('tesseract.js');
 const dotenv = require("dotenv");
 const path = require('path');
 const OcrResult = require("../models/OcrResult.model.js");
+const { ingestTextIntoRag } = require('../services/rag.service.js');
 
 dotenv.config();
 
@@ -103,6 +104,10 @@ const processPdfOcrController = async (req, res) => {
             userId: req.user?._id || undefined,
         });
         await newOcrResult.save();
+
+        // Integrate with RAG system
+        console.log("🧠 Sending extracted text to RAG model...");
+        await ingestTextIntoRag(fullText, req.file.originalname || "unknown_file", req.user?._id);
 
         res.status(200).json({
             success: true,

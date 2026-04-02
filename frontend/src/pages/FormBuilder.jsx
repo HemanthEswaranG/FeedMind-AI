@@ -1,9 +1,191 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import apiClient from '../api/apiClient';
 import ShareLinkModal from '../components/ShareLinkModal';
 
 const qTypes = ['Short Text', 'Long Text', 'Multiple Choice', 'Checkbox', 'Rating', 'NPS', 'Dropdown', 'Date'];
-const typeIcons = { 'Short Text': 'T', 'Long Text': 'Â¶', 'Multiple Choice': 'â—Ž', 'Checkbox': 'â˜‘', 'Rating': 'â˜…', 'NPS': 'ðŸ“Š', 'Dropdown': 'â–¾', 'Date': 'ðŸ“…' };
+const OTHER_OPTION_LABEL = 'Others';
+
+function TypeGlyph({ type }) {
+  if (type === 'Short Text') return <span className="q-type-glyph q-type-glyph--text">T</span>;
+  if (type === 'Long Text') {
+    return (
+      <span className="q-type-glyph q-type-glyph--long" aria-hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M4 6h16M4 12h16M4 18h10" />
+        </svg>
+      </span>
+    );
+  }
+  if (type === 'Multiple Choice') return <span className="q-type-glyph q-type-glyph--radio" aria-hidden />;
+  if (type === 'Checkbox') return <span className="q-type-glyph q-type-glyph--check" aria-hidden />;
+  if (type === 'Rating') {
+    return (
+      <span className="q-type-glyph q-type-glyph--star" aria-hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2l2.4 7.4h7.6l-6 4.6 2.3 7-6.3-4.6-6.3 4.6 2.3-7-6-4.6h7.6z" />
+        </svg>
+      </span>
+    );
+  }
+  if (type === 'NPS') return <span className="q-type-glyph q-type-glyph--nps">N</span>;
+  if (type === 'Dropdown') {
+    return (
+      <span className="q-type-glyph q-type-glyph--caret" aria-hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </span>
+    );
+  }
+  if (type === 'Date') {
+    return (
+      <span className="q-type-glyph q-type-glyph--date" aria-hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+      </span>
+    );
+  }
+  return <span className="q-type-glyph">?</span>;
+}
+
+function IconDragHandle() {
+  return (
+    <svg className="q-drag-svg" width="14" height="18" viewBox="0 0 14 18" fill="none" aria-hidden>
+      {Array.from({ length: 6 }, (_, i) => {
+        const row = Math.floor(i / 2);
+        const col = i % 2;
+        return <circle key={i} cx={3 + col * 5} cy={3 + row * 5} r="1.5" fill="currentColor" />;
+      })}
+    </svg>
+  );
+}
+
+function IconChevronDown({ open = false }) {
+  return (
+    <svg className={`q-chevron${open ? ' q-chevron--open' : ''}`} width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function QuestionTypePicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
+  const [menuStyle, setMenuStyle] = useState({});
+
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return undefined;
+    const update = () => {
+      const el = triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const panelWidth = Math.max(r.width, 220);
+      let left = r.left;
+      if (left + panelWidth > vw - 8) left = Math.max(8, vw - panelWidth - 8);
+      setMenuStyle({
+        position: 'fixed',
+        top: `${r.bottom + 4}px`,
+        left: `${left}px`,
+        width: `${panelWidth}px`,
+        zIndex: 10050,
+      });
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => {
+      if (triggerRef.current?.contains(e.target)) return;
+      if (menuRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  return (
+    <>
+      <button
+        type="button"
+        ref={triggerRef}
+        className={`q-type-select-wrap q-type-trigger${open ? ' q-type-select-wrap--open' : ''}`}
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-label="Question type"
+      >
+        <TypeGlyph type={value} />
+        <span className="q-type-label">{value}</span>
+        <IconChevronDown open={open} />
+      </button>
+      {open
+        && createPortal(
+          <div
+            ref={menuRef}
+            className="q-type-dropdown-panel"
+            style={menuStyle}
+            role="listbox"
+          >
+            {qTypes.map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="option"
+                aria-selected={t === value}
+                className={`q-type-dropdown-item${t === value ? ' is-active' : ''}`}
+                onClick={() => {
+                  onChange(t);
+                  setOpen(false);
+                }}
+              >
+                {t}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
+
+function IconDuplicate() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M4 16V6a2 2 0 0 1 2-2h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconTrash() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 const typeHints = {
   'Short Text': 'Collect one-line responses from users.',
   'Long Text': 'Allow detailed feedback in paragraph form.',
@@ -15,8 +197,9 @@ const typeHints = {
   Date: 'Capture a specific date from users.'
 };
 
-function QuestionCard({ question, index, onDelete, onCycleType, onUpdate }) {
+function QuestionCard({ question, index, onDelete, onDuplicate, onCycleType, onUpdate }) {
   const isChoice = ['Multiple Choice', 'Checkbox', 'Dropdown'].includes(question.type);
+  const isRadioStyle = question.type === 'Multiple Choice' || question.type === 'Dropdown';
   const [toggled, setToggled] = useState(Boolean(question.required));
   const [newOption, setNewOption] = useState('');
 
@@ -38,42 +221,59 @@ function QuestionCard({ question, index, onDelete, onCycleType, onUpdate }) {
     onUpdate(question.id, { ...question, options: opts });
   };
 
+  const addOthers = () => {
+    if (question.allowOther) return;
+    onUpdate(question.id, { ...question, allowOther: true });
+  };
+
   return (
-    <div className="question-card" data-number={`${index + 1}.`}>
+    <div className="question-card">
       <div className="q-card-content">
         <div className="q-toolbar">
           <div className="q-toolbar-left">
-            <span className="q-drag-handle">::</span>
-            <select
+            <span className="q-drag-handle" title="Drag to reorder">
+              <IconDragHandle />
+            </span>
+            <QuestionTypePicker
               value={question.type}
-              onChange={(e) => onCycleType(question.id, e.target.value)}
-              className="q-type-select"
-            >
-              {qTypes.map(t => <option key={t} value={t}>{typeIcons[t]} {t}</option>)}
-            </select>
-            {isChoice && <span className="q-add-others">+ Add Others</span>}
+              onChange={(t) => onCycleType(question.id, t)}
+            />
+            {isChoice && (
+              <button type="button" className="q-add-others" onClick={addOthers}>
+                + Add Others
+              </button>
+            )}
           </div>
 
           <div className="q-toolbar-right">
             <div className="q-required">
-              Required
-              <div
-                className={`toggle${toggled ? ' on' : ''}`}
+              <span className="q-required-label">Required</span>
+              <button
+                type="button"
+                className={`q-toggle${toggled ? ' q-toggle--on' : ''}`}
                 onClick={() => {
                   const next = !toggled;
                   setToggled(next);
                   onUpdate(question.id, { ...question, required: next });
                 }}
-              ></div>
+                aria-pressed={toggled}
+                aria-label="Required"
+              />
             </div>
+            <span className="q-toolbar-divider" aria-hidden />
             <div className="q-actions">
-              <button className="q-action-btn" title="Duplicate">+</button>
-              <button className="q-action-btn" onClick={() => onDelete(question.id)} title="Delete">x</button>
+              <button type="button" className="q-action-btn" title="Duplicate" onClick={() => onDuplicate(question.id)}>
+                <IconDuplicate />
+              </button>
+              <button type="button" className="q-action-btn" title="Delete" onClick={() => onDelete(question.id)}>
+                <IconTrash />
+              </button>
             </div>
           </div>
         </div>
 
         <div className="q-body">
+          <span className="q-num">{index + 1}.</span>
           <input
             className="q-input"
             value={question.text}
@@ -86,24 +286,20 @@ function QuestionCard({ question, index, onDelete, onCycleType, onUpdate }) {
           <div className="q-options-section">
             {(question.options || []).map((opt, idx) => (
               <div key={idx} className="q-option-item">
-                <div className="q-option-circle"></div>
+                <div className={isRadioStyle ? 'q-option-mark q-option-mark--radio' : 'q-option-mark q-option-mark--check'} />
                 <input
                   className="q-option-input"
                   value={opt}
                   onChange={(e) => updateOption(idx, e.target.value)}
                   placeholder={`Option ${idx + 1}`}
                 />
-                <button
-                  className="q-option-remove"
-                  onClick={() => removeOption(idx)}
-                  title="Delete"
-                >
-                  âœ•
+                <button type="button" className="q-option-remove" onClick={() => removeOption(idx)} title="Remove option">
+                  ×
                 </button>
               </div>
             ))}
-            <div className="q-option-add">
-              <div className="q-option-circle"></div>
+            <div className={`q-option-add${(question.options || []).length === 0 ? ' q-option-add--full' : ''}`}>
+              <div className={isRadioStyle ? 'q-option-mark q-option-mark--radio' : 'q-option-mark q-option-mark--check'} />
               <input
                 className="q-option-input"
                 value={newOption}
@@ -113,6 +309,17 @@ function QuestionCard({ question, index, onDelete, onCycleType, onUpdate }) {
                 placeholder="Add option..."
               />
             </div>
+            {question.allowOther && (
+              <div className="q-option-item q-option-item--locked">
+                <div className={isRadioStyle ? 'q-option-mark q-option-mark--radio' : 'q-option-mark q-option-mark--check'} />
+                <input
+                  className="q-option-input q-option-input--locked"
+                  value={OTHER_OPTION_LABEL}
+                  readOnly
+                  aria-label="Others option"
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -152,11 +359,32 @@ export default function FormBuilder({ onBack, formId = null }) {
     setQuestions(prev => [...prev, { id: Date.now(), num, type, text, options: [] }]);
   };
 
-  const deleteQuestion = (id) => setQuestions(prev => prev.filter(q => q.id !== id));
+  const deleteQuestion = (id) => setQuestions((prev) => prev.filter((q) => q.id !== id));
+
+  const duplicateQuestion = (id) => {
+    setQuestions((prev) => {
+      const idx = prev.findIndex((q) => q.id === id);
+      if (idx < 0) return prev;
+      const q = prev[idx];
+      const copy = {
+        ...q,
+        id: Date.now(),
+        options: Array.isArray(q.options) ? [...q.options] : [],
+        allowOther: !!q.allowOther,
+      };
+      return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
+    });
+  };
 
   const cycleType = (id, newType) => {
     setQuestions(prev => prev.map(q =>
-      q.id === id ? { ...q, type: newType } : q
+      q.id === id
+        ? {
+            ...q,
+            type: newType,
+            allowOther: ['Multiple Choice', 'Checkbox', 'Dropdown'].includes(newType) ? !!q.allowOther : false,
+          }
+        : q
     ));
   };
 
@@ -226,13 +454,14 @@ export default function FormBuilder({ onBack, formId = null }) {
     setSaving(true);
     try {
       // Format questions for API - remove 'num' field and ensure proper structure
-      const formattedQuestions = questions.map(q => ({
+      const formattedQuestions = questions.map((q, idx) => ({
         id: String(q.id),
         type: q.type,
         text: q.text || '',
         required: q.required || false,
         options: q.options || [],
-        order: q.num - 1
+        allowOther: !!q.allowOther,
+        order: idx,
       }));
 
       const formData = {
@@ -304,6 +533,54 @@ export default function FormBuilder({ onBack, formId = null }) {
   const [s4, setS4] = useState(true);
   const [s5, setS5] = useState(true);
   const [s6, setS6] = useState(false);
+  const [loadingForm, setLoadingForm] = useState(Boolean(formId));
+
+  useEffect(() => {
+    if (!formId) {
+      setLoadingForm(false);
+      return;
+    }
+    let cancelled = false;
+    setLoadingForm(true);
+    apiClient
+      .get(`/forms/${formId}`)
+      .then(({ data }) => {
+        if (cancelled || !data?.form) return;
+        const f = data.form;
+        setFormTitle(f.title || 'Untitled form');
+        setFormDescription(f.description || '');
+        setFormId(f._id);
+        setShareLink(f.shareLink || null);
+        setIsPublished(f.status === 'published');
+        const qs = (f.questions || []).map((q, i) => ({
+          id: q.id || `q-${i}`,
+          num: i + 1,
+          type: q.type || 'Short Text',
+          text: q.text || '',
+          options: (q.options || []).filter((opt) => String(opt).trim().toLowerCase() !== OTHER_OPTION_LABEL.toLowerCase()),
+          allowOther: !!q.allowOther || (q.options || []).some((opt) => String(opt).trim().toLowerCase() === OTHER_OPTION_LABEL.toLowerCase()),
+          required: !!q.required,
+        }));
+        if (qs.length) {
+          setQuestions(qs);
+          setCounter(qs.length);
+        } else {
+          const id = Date.now();
+          setQuestions([{ id, num: 1, type: 'Short Text', text: '', options: [], required: false }]);
+          setCounter(1);
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        alert('Failed to load form.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingForm(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [formId]);
 
   const handleViewResponses = () => {
     setShowShareModal(false);
@@ -315,6 +592,14 @@ export default function FormBuilder({ onBack, formId = null }) {
       window.location.reload();
     }, 100);
   };
+
+  if (loadingForm) {
+    return (
+      <div className="builder-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div className="forms-loading-spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
+      </div>
+    );
+  }
 
   return (
     <div className="builder-wrapper">
@@ -334,7 +619,15 @@ export default function FormBuilder({ onBack, formId = null }) {
             <input className="builder-page-desc" value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Add a description (optional)..." />
 
             {questions.map((q, idx) => (
-              <QuestionCard key={q.id} question={q} index={idx} onDelete={deleteQuestion} onCycleType={cycleType} onUpdate={updateQuestion} />
+              <QuestionCard
+                key={q.id}
+                question={q}
+                index={idx}
+                onDelete={deleteQuestion}
+                onDuplicate={duplicateQuestion}
+                onCycleType={cycleType}
+                onUpdate={updateQuestion}
+              />
             ))}
 
             <div className="builder-add-wrap">

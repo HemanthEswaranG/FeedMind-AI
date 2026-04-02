@@ -28,7 +28,7 @@ export default function AuthOverlay({ onLogin }) {
         onLogin(res.data.user);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Authentication failed. Please try again.');
+      setError(err.response?.data?.message || err.message || 'Authentication failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -39,19 +39,21 @@ export default function AuthOverlay({ onLogin }) {
       setLoading(true);
       setError(null);
       try {
-        const res = await apiClient.post('/auth/google', { token: response.access_token });
+        console.log('Google response:', response);
+        const res = await apiClient.post('/auth/google', { accessToken: response.access_token });
         if (res.data.success) {
           localStorage.setItem('token', res.data.token);
           onLogin(res.data.user);
         }
       } catch (err) {
-        setError('Google Login failed. Please try again.');
+        setError(err.response?.data?.message || err.message || 'Google Login failed. Please try again.');
         console.error('Google Auth error:', err);
       } finally {
         setLoading(false);
       }
     },
     onError: () => setError('Google Login was unsuccessful.'),
+    scope: 'openid email profile',
   });
 
   return (

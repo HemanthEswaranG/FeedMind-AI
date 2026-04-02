@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import Forms from './pages/Forms';
 import Responses from './pages/Responses';
 import Analytics from './pages/Analytics';
+import PublicFormView from './pages/PublicFormView';
 
 import OcrUpload from './pages/OcrUpload';
 import FormBuilder from './pages/FormBuilder';
@@ -19,8 +20,19 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [loading, setLoading] = useState(true);
+  const [publicShareLink, setPublicShareLink] = useState(null);
 
+  // Check for public form link on mount
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareLink = params.get('form');
+    if (shareLink) {
+      setPublicShareLink(shareLink);
+      setLoading(false);
+      return;
+    }
+
+    // Otherwise check authentication
     const token = localStorage.getItem('token');
     if (token) {
       apiClient.get('/auth/me')
@@ -49,12 +61,24 @@ export default function App() {
     setCurrentPage('dashboard');
   };
 
-  const navigate = (page) => {
+  const [builderFormId, setBuilderFormId] = useState(null);
+
+  const navigate = (page, formId) => {
+    if (page === 'builder') {
+      setBuilderFormId(formId ?? null);
+    } else {
+      setBuilderFormId(null);
+    }
     setCurrentPage(page);
   };
 
   if (loading) {
     return <div className="app-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Loading FeedMind...</div>;
+  }
+
+  // Show public form if shareLink is in URL
+  if (publicShareLink) {
+    return <PublicFormView shareLink={publicShareLink} onFormNotFound={() => window.location.href = '/'} />;
   }
 
   if (!user) {
@@ -63,7 +87,16 @@ export default function App() {
 
   // Builder gets full screen treatment (no sidebar)
   if (currentPage === 'builder') {
-    return <FormBuilder onBack={() => setCurrentPage('forms')} />;
+    return (
+      <FormBuilder
+        key={builderFormId || 'new'}
+        formId={builderFormId}
+        onBack={() => {
+          setBuilderFormId(null);
+          setCurrentPage('forms');
+        }}
+      />
+    );
   }
 
   const pages = {

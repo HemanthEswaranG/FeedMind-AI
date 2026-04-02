@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "@google/genai": "^1.47.0",
+    "@huggingface/inference": "^4.13.15",
+    "@langchain/textsplitters": "^1.0.1",
+    "@supabase/supabase-js": "^2.101.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",

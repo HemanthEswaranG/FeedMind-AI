@@ -6,7 +6,7 @@ export default function Navbar({ user, dateStr, onNavigate, currentPage }) {
   
   const pageTitles = {
     dashboard: `${greeting}, ${user?.name || 'User'} 👋`,
-    forms: 'Forms',
+    forms: 'My forms',
     responses: 'Responses',
     analytics: 'Analytics',
     ocr: 'Data Upload',

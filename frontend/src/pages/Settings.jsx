@@ -67,11 +67,11 @@ export default function Settings({ user }) {
             <div className="profile-form-grid">
               <div className="form-group">
                 <label className="form-label">FIRST NAME</label>
-                <input type="text" className="form-input" defaultValue={user?.name?.split(' ')[0] || 'Alex'} />
+                <input type="text" className="form-input" defaultValue={user?.firstName || user?.name?.split(' ')[0] || 'Alex'} />
               </div>
               <div className="form-group">
                 <label className="form-label">LAST NAME</label>
-                <input type="text" className="form-input" defaultValue={user?.name?.split(' ')[1] || 'Mercer'} />
+                <input type="text" className="form-input" defaultValue={user?.lastName || user?.name?.split(' ')[1] || 'Mercer'} />
               </div>
               <div className="form-group">
                 <label className="form-label">EMAIL ADDRESS</label>

@@ -1,6 +1,7 @@
-﻿// controllers/question.controller.js
 const { GoogleGenAI } = require("@google/genai");
 const OcrResult = require("../models/OcrResult.model.js");
+const DocumentChunk = require("../models/DocumentChunk.model.js");
+const { getRelevantContext } = require("../services/rag.service.js");
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -13,28 +14,23 @@ const generateFormQuestions = async (req, res) => {
             return res.status(400).json({ error: "Prompt (selectedSuggestion) is required" });
         }
 
-        // Fetch ALL trained data for the user
-        const query = userId ? { userId } : {};
-        const allTrainedData = await OcrResult.find(query)
-            .select('fileName aiAnalysis rawText createdAt')
-            .limit(10)
-            .exec();
+        // 1. Check if the user has any trained data at all for RAG
+        console.log(`🔍 Checking RAG for userId: ${userId}`);
+        const userHasChunks = await DocumentChunk.exists({ "metadata.userId": userId ? new mongoose.Types.ObjectId(userId) : null });
 
-        // No trained data at all
-        if (!allTrainedData || allTrainedData.length === 0) {
+        if (!userHasChunks) {
+            console.log(`❌ No chunks found for userId: ${userId} in document_chunks collection.`);
             return res.status(422).json({ 
                 error: "No trained data available. Please upload and train data in the Data Upload page first to generate questions.",
                 code: "NO_TRAINED_DATA"
             });
         }
 
-        // Combine all trained data context
-        const combinedContext = allTrainedData
-            .map(doc => doc.aiAnalysis || doc.rawText)
-            .filter(txt => txt && txt.trim().length > 0)
-            .join('\n\n---\n\n');
+        // 2. Fetch the MOST RELEVANT context using RAG
+        console.log(`🔍 Searching RAG for relevant context for: "${selectedSuggestion}"...`);
+        const combinedContext = await getRelevantContext(selectedSuggestion, userId, 10);
 
-        // Validate combined context has sufficient information
+        // 3. Validate combined context has sufficient information
         if (!combinedContext || combinedContext.trim().length < 50) {
             return res.status(422).json({ 
                 error: "Insufficient training data information. There is less info and trained data. Please train more relevant data in the Data Upload page for better question generation.",
@@ -87,7 +83,6 @@ const generateFormQuestions = async (req, res) => {
         res.status(200).json({
             success: true,
             questions: questions,
-            usedDataCount: allTrainedData.length
         });
     } catch (error) {
         console.error("Question Gen Error:", error);

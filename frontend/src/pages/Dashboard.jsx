@@ -12,6 +12,7 @@ export default function Dashboard({ user, onNavigate }) {
   const [heatmapHover, setHeatmapHover] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [stats, setStats] = useState({ totalForms: 0, publishedForms: 0, draftForms: 0, totalResponses: 0, avgPerForm: 0, spamBlocked: 0 });
+  const [recentForms, setRecentForms] = useState([]);
   const [forms, setForms] = useState([
     { id: 'overall', name: 'Overall', icon: '📊' },
     { id: 'form1', name: 'Customer Feedback', icon: '💬' },
@@ -24,6 +25,19 @@ export default function Dashboard({ user, onNavigate }) {
   const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const formatDate = (value) => {
+    if (!value) return '—';
+    return new Date(value).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+  const getFormStatus = (status) => {
+    if (status === 'published') return { label: 'live', color: 'var(--green)', bg: 'rgba(34,197,94,0.14)' };
+    if (status === 'archived') return { label: 'deleted', color: 'var(--red)', bg: 'rgba(239,68,68,0.14)' };
+    return { label: 'draft', color: 'var(--yellow)', bg: 'rgba(245,158,11,0.14)' };
+  };
 
   const timePeriods = [
     { id: '7d', label: '7 Days' },
@@ -59,6 +73,7 @@ export default function Dashboard({ user, onNavigate }) {
 
         if (formsRes.data?.forms) {
           const formsData = formsRes.data.forms;
+          setRecentForms(formsData);
           const formsList = [
             { id: 'overall', name: 'Overall', icon: '📊' },
             ...formsData.map(f => ({ id: f._id, name: f.title, icon: '📝' }))
@@ -330,7 +345,32 @@ export default function Dashboard({ user, onNavigate }) {
         <div className="card">
           <div className="perf-title">📋 Recent Forms</div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -20, marginBottom: 12 }}><span style={{ fontSize: 12, color: 'var(--purple)', cursor: 'pointer' }} onClick={() => onNavigate('forms')}>View all forms →</span></div>
-          <div style={{ textAlign: 'center', padding: 30, color: 'var(--text3)', fontSize: 13 }}>No forms yet. Create your first form!</div>
+          {recentForms.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 30, color: 'var(--text3)', fontSize: 13 }}>No forms yet. Create your first form!</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) 92px 110px 120px 130px', gap: 12, padding: '0 12px', color: 'var(--text3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                <div>Form</div>
+                <div>Status</div>
+                <div style={{ textAlign: 'center' }}>Responses</div>
+                <div>Created At</div>
+                <div>Last Modified</div>
+              </div>
+              {recentForms.map((form) => (
+                <div key={form._id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) 92px 110px 120px 130px', gap: 12, alignItems: 'center', background: 'var(--bg4)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px', minWidth: 0 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: 'var(--text1)', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.title || 'Untitled form'}</div>
+                  </div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 999, padding: '5px 10px', fontSize: 12, fontWeight: 700, color: getFormStatus(form.status).color, background: getFormStatus(form.status).bg, textTransform: 'capitalize', width: 'fit-content' }}>
+                    {getFormStatus(form.status).label}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', fontSize: 12, color: 'var(--cyan)', fontWeight: 600, textAlign: 'center' }}>{form.responseCount || 0}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text2)' }}>{formatDate(form.createdAt)}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text2)' }}>{formatDate(form.updatedAt)}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

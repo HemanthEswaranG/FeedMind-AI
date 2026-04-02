@@ -1,0 +1,19 @@
+{
+  "name": "rag-system",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@huggingface/inference": "^4.13.15",
+    "@langchain/textsplitters": "^1.0.1",
+    "@supabase/supabase-js": "^2.98.0",
+    "pdf-parse": "^1.1.1"
+  }
+}

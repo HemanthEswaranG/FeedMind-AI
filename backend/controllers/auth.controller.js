@@ -12,6 +12,8 @@ const generateToken = (id) => {
 
 const toPublicUser = (user) => ({
   id: user._id,
+  firstName: user.firstName,
+  lastName: user.lastName,
   name: user.name,
   email: user.email,
   avatar: user.avatar || '',
@@ -43,7 +45,18 @@ exports.register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email already registered' });
     }
 
-    const user = await User.create({ name, email, password });
+    // Parse name into first and last name
+    const nameParts = name.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    const user = await User.create({ 
+      firstName,
+      lastName,
+      name, 
+      email, 
+      password 
+    });
     const token = generateToken(user._id);
 
     res.status(201).json({
@@ -95,34 +108,78 @@ exports.getMe = async (req, res) => {
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+const fetchGoogleProfile = async (accessToken) => {
+  try {
+    const response = await fetch(`https://www.googleapis.com/oauth2/v2/userinfo`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Google userinfo error:', response.status, errorText);
+      throw new Error(`Google API error: ${response.status}`);
+    }
+
+    const profile = await response.json();
+    console.log('Google profile fetched:', profile.email);
+    
+    // Parse name into first and last name
+    const nameParts = (profile.name || '').trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    
+    return {
+      firstName: firstName,
+      lastName: lastName,
+      name: profile.name || '',
+      email: profile.email || '',
+      googleId: profile.id || '',
+      avatar: profile.picture || '',
+    };
+  } catch (err) {
+    console.error('Failed to fetch Google profile:', err.message);
+    throw new Error('Unable to verify Google token. Please try again.');
+  }
+};
+
 // ─── POST /api/auth/google ────────────────────────────────
 exports.googleAuth = async (req, res) => {
   try {
-    const { token } = req.body;
+    const { accessToken } = req.body;
     
-    if (!token) {
-      return res.status(400).json({ success: false, message: 'Google token is required' });
+    if (!accessToken) {
+      return res.status(400).json({ success: false, message: 'Google access token is required' });
     }
 
-    // Verify Google Token
-    const ticket = await client.verifyIdToken({
-      idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
+    // Fetch user profile using access token
+    const { firstName, lastName, name, email, googleId, avatar } = await fetchGoogleProfile(accessToken);
 
-    const { name, email, sub: googleId, picture: avatar } = ticket.getPayload();
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Could not retrieve email from Google' });
+    }
 
     let user = await User.findOne({ email });
     
     if (!user) {
       // Auto-register via Google
+      console.log('Creating new user from Google auth:', email);
       user = await User.create({ 
+        firstName,
+        lastName,
         name, 
         email, 
         googleId, 
         avatar,
         workspace: { name: `${name}'s Workspace` }
       });
+    } else {
+      // Update existing user with latest Google profile info
+      user.avatar = avatar;
+      if (!user.firstName) user.firstName = firstName;
+      if (!user.lastName) user.lastName = lastName;
+      await user.save();
     }
 
     const jwtToken = generateToken(user._id);
@@ -133,8 +190,8 @@ exports.googleAuth = async (req, res) => {
       user: toPublicUser(user),
     });
   } catch (err) {
-    console.error('Google Auth Error:', err);
-    res.status(401).json({ success: false, message: 'Invalid or expired Google token' });
+    console.error('Google Auth Error:', err.message);
+    res.status(401).json({ success: false, message: err.message || 'Invalid or expired Google token' });
   }
 };
 

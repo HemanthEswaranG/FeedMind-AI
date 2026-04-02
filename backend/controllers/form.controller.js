@@ -13,8 +13,18 @@ exports.getForms = async (req, res) => {
     const total = await Form.countDocuments({ owner: req.user._id });
     const published = await Form.countDocuments({ owner: req.user._id, status: 'published' });
     const drafts = await Form.countDocuments({ owner: req.user._id, status: 'draft' });
+    const archived = await Form.countDocuments({ owner: req.user._id, status: 'archived' });
+    const trAgg = await Form.aggregate([
+      { $match: { owner: req.user._id } },
+      { $group: { _id: null, totalResponses: { $sum: '$responseCount' } } },
+    ]);
+    const totalResponses = trAgg[0]?.totalResponses ?? 0;
 
-    res.json({ success: true, forms, stats: { total, published, drafts } });
+    res.json({
+      success: true,
+      forms,
+      stats: { total, published, drafts, archived, totalResponses },
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

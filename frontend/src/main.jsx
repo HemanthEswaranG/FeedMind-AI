@@ -8,7 +8,10 @@ const CLIENT_ID = "435586515070-2kl5tevej15tepq9og773oevb3dj0qfv.apps.googleuser
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <GoogleOAuthProvider clientId={CLIENT_ID}>
+    <GoogleOAuthProvider 
+      clientId={CLIENT_ID}
+      onScriptProps={{ async: true, defer: true, crossOrigin: 'anonymous' }}
+    >
       <App />
     </GoogleOAuthProvider>
   </StrictMode>,
