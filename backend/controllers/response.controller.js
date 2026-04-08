@@ -17,13 +17,16 @@ exports.getResponses = async (req, res) => {
       .populate('form', 'title')
       .lean();
 
+    const statsFilter = { owner: req.user._id };
+    if (formId) statsFilter.form = formId;
+
     const stats = {
-      total: await Response.countDocuments({ owner: req.user._id }),
-      valid: await Response.countDocuments({ owner: req.user._id, status: 'valid' }),
-      spam: await Response.countDocuments({ owner: req.user._id, status: 'spam' }),
-      flagged: await Response.countDocuments({ owner: req.user._id, status: 'flagged' }),
-      positive: await Response.countDocuments({ owner: req.user._id, sentiment: 'positive' }),
-      negative: await Response.countDocuments({ owner: req.user._id, sentiment: 'negative' }),
+      total: await Response.countDocuments(statsFilter),
+      valid: await Response.countDocuments({ ...statsFilter, status: 'valid' }),
+      spam: await Response.countDocuments({ ...statsFilter, status: 'spam' }),
+      flagged: await Response.countDocuments({ ...statsFilter, status: 'flagged' }),
+      positive: await Response.countDocuments({ ...statsFilter, sentiment: 'positive' }),
+      negative: await Response.countDocuments({ ...statsFilter, sentiment: 'negative' }),
     };
 
     res.json({ success: true, responses, stats });
@@ -35,7 +38,7 @@ exports.getResponses = async (req, res) => {
 // ─── POST /api/responses (public – form submission) ───────
 exports.submitResponse = async (req, res) => {
   try {
-    const { formId, answers, email, device, completionTime, completionRate } = req.body;
+    const { formId, answers, email, name, device, completionTime, completionRate } = req.body;
 
     const form = await Form.findOne({ _id: formId, status: 'published' });
     if (!form) return res.status(404).json({ success: false, message: 'Form not found or not published' });
@@ -44,6 +47,7 @@ exports.submitResponse = async (req, res) => {
       form: formId,
       owner: form.owner,
       answers,
+      name: name || 'Anonymous',
       email: email || '',
       device: device || 'unknown',
       completionTime: completionTime || 0,

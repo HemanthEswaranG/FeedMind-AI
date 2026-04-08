@@ -13,6 +13,8 @@ export default function Dashboard({ user, onNavigate }) {
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [stats, setStats] = useState({ totalForms: 0, publishedForms: 0, draftForms: 0, totalResponses: 0, avgPerForm: 0, spamBlocked: 0 });
   const [recentForms, setRecentForms] = useState([]);
+  const [sentimentBreakdown, setSentimentBreakdown] = useState({ positive: 0, neutral: 0, negative: 0, unknown: 0 });
+  const [insights, setInsights] = useState([]);
   const [forms, setForms] = useState([
     { id: 'overall', name: 'Overall', icon: '📊' },
     { id: 'form1', name: 'Customer Feedback', icon: '💬' },
@@ -58,14 +60,19 @@ export default function Dashboard({ user, onNavigate }) {
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
+  }, [timePeriod, selectedForm]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [formsRes, overviewRes] = await Promise.all([
           apiClient.get('/forms'),
-          apiClient.get('/analytics/overview')
+          apiClient.get('/analytics/overview', {
+            params: {
+              period: timePeriod,
+              ...(selectedForm !== 'overall' ? { formId: selectedForm } : {}),
+            },
+          })
         ]);
 
         console.log('Forms Response:', formsRes.data);
@@ -92,6 +99,13 @@ export default function Dashboard({ user, onNavigate }) {
             avgPerForm: data.avgPerForm,
             spamBlocked: data.responses.spam
           });
+          setSentimentBreakdown({
+            positive: data.sentiment?.positive || 0,
+            neutral: data.sentiment?.neutral || 0,
+            negative: data.sentiment?.negative || 0,
+            unknown: data.sentiment?.unknown || 0,
+          });
+          setInsights(Array.isArray(data.insights) ? data.insights : []);
         }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
@@ -110,6 +124,24 @@ export default function Dashboard({ user, onNavigate }) {
     { date: 'Jan 25', responses: 88, views: 110 },
     { date: 'Jan 30', responses: 95, views: 125 }
   ];
+
+  const sentimentTotal = Math.max(
+    sentimentBreakdown.positive + sentimentBreakdown.neutral + sentimentBreakdown.negative,
+    1
+  );
+  const sentimentPct = {
+    positive: Math.round((sentimentBreakdown.positive / sentimentTotal) * 100),
+    neutral: Math.round((sentimentBreakdown.neutral / sentimentTotal) * 100),
+    negative: Math.round((sentimentBreakdown.negative / sentimentTotal) * 100),
+  };
+
+  const insightCards = insights.length > 0 ? insights : [{
+    id: 'fallback',
+    tone: 'info',
+    title: 'Insights loading',
+    body: 'Connect some responses to generate live dashboard insights.',
+    tag: 'Waiting on data',
+  }];
 
   return (
     <div className="page">
@@ -213,30 +245,30 @@ export default function Dashboard({ user, onNavigate }) {
         </div>
         <div className="perf-card">
           <div className="perf-title">Response Sentiment</div>
-          <div className="perf-sub">AI-analysed · 0 responses</div>
+          <div className="perf-sub">AI-analysed · {stats.totalResponses} response{stats.totalResponses === 1 ? '' : 's'}</div>
           <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div className="legend-row" style={{ fontSize: 14, fontWeight: 600 }}><div className="legend-dot" style={{ background: 'var(--green)' }}></div>Positive<div className="legend-pct color-green">62%</div></div>
-              <div className="legend-row" style={{ fontSize: 14, fontWeight: 600 }}><div className="legend-dot" style={{ background: 'var(--purple)' }}></div>Neutral<div className="legend-pct color-purple">24%</div></div>
-              <div className="legend-row" style={{ fontSize: 14, fontWeight: 600 }}><div className="legend-dot" style={{ background: 'var(--red)' }}></div>Negative<div className="legend-pct color-red">14%</div></div>
+              <div className="legend-row" style={{ fontSize: 14, fontWeight: 600 }}><div className="legend-dot" style={{ background: 'var(--green)' }}></div>Positive<div className="legend-pct color-green">{sentimentPct.positive}%</div></div>
+              <div className="legend-row" style={{ fontSize: 14, fontWeight: 600 }}><div className="legend-dot" style={{ background: 'var(--purple)' }}></div>Neutral<div className="legend-pct color-purple">{sentimentPct.neutral}%</div></div>
+              <div className="legend-row" style={{ fontSize: 14, fontWeight: 600 }}><div className="legend-dot" style={{ background: 'var(--red)' }}></div>Negative<div className="legend-pct color-red">{sentimentPct.negative}%</div></div>
             </div>
             <div style={{ flex: 1, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
               <ResponsiveContainer width="100%" height={160}>
                 <PieChart>
                   <Pie
                     data={[
-                      { name: 'Positive', value: 62, color: '#22c55e' },
-                      { name: 'Neutral', value: 24, color: '#a855f7' },
-                      { name: 'Negative', value: 14, color: '#ef4444' }
+                      { name: 'Positive', value: sentimentPct.positive, color: '#22c55e' },
+                      { name: 'Neutral', value: sentimentPct.neutral, color: '#a855f7' },
+                      { name: 'Negative', value: sentimentPct.negative, color: '#ef4444' }
                     ]}
                     cx="50%" cy="50%"
                     innerRadius={50} outerRadius={75}
                     paddingAngle={3} dataKey="value"
                   >
                     {[
-                      { name: 'Positive', value: 62, color: '#22c55e' },
-                      { name: 'Neutral', value: 24, color: '#a855f7' },
-                      { name: 'Negative', value: 14, color: '#ef4444' }
+                      { name: 'Positive', value: sentimentPct.positive, color: '#22c55e' },
+                      { name: 'Neutral', value: sentimentPct.neutral, color: '#a855f7' },
+                      { name: 'Negative', value: sentimentPct.negative, color: '#ef4444' }
                     ].map((entry, i) => (
                       <Cell key={i} fill={entry.color} stroke="none" />
                     ))}
@@ -245,7 +277,7 @@ export default function Dashboard({ user, onNavigate }) {
                 </PieChart>
               </ResponsiveContainer>
               <div style={{ position: 'absolute', textAlign: 'center', pointerEvents: 'none' }}>
-                <div style={{ fontSize: 28, fontWeight: 700, color: '#22c55e' }}>62%</div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#22c55e' }}>{sentimentPct.positive}%</div>
                 <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 4 }}>Positive</div>
               </div>
             </div>
@@ -328,16 +360,16 @@ export default function Dashboard({ user, onNavigate }) {
         <div className="card">
           <div className="perf-title">✦ AI Insights</div>
           <div className="perf-sub">Auto-generated · based on your data</div>
-          <div className="ai-insight-card good-card">
-            <div className="ai-insight-title">📈 Peak engagement detected</div>
-            <div className="ai-insight-body">No responses yet — publish a form to start collecting. Schedule launches accordingly.</div>
-            <div className="ai-insight-tag">⊙ Actionable signal</div>
-          </div>
-          <div className="ai-insight-card alert-card">
-            <div className="ai-insight-title">⚠ Drop-off risk detected</div>
-            <div className="ai-insight-body">Collect more responses to detect drop-off hotspots.</div>
-            <div className="ai-insight-tag">⊙ Actionable signal</div>
-          </div>
+          {insightCards.map((card) => (
+            <div
+              key={card.id}
+              className={`ai-insight-card ${card.tone === 'alert' ? 'alert-card' : 'good-card'}`}
+            >
+              <div className="ai-insight-title">{card.tone === 'alert' ? '⚠' : '✦'} {card.title}</div>
+              <div className="ai-insight-body">{card.body}</div>
+              <div className="ai-insight-tag">⊙ {card.tag}</div>
+            </div>
+          ))}
         </div>
       </div>
 

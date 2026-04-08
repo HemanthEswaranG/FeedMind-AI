@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-// Use Render backend URL in production, fallback to local in development
+// Use configured backend URL when provided, otherwise use same-origin API path.
 let API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  import.meta.env.VITE_API_URL || '/api';
+
+const DEFAULT_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS) || 20000;
 
 // Ensure /api suffix exists
 if (!API_BASE_URL.endsWith('/api')) {
@@ -11,7 +13,7 @@ if (!API_BASE_URL.endsWith('/api')) {
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: DEFAULT_TIMEOUT_MS,
 });
 
 // Request interceptor: automatically add token to all requests

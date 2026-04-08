@@ -6,6 +6,13 @@ import ShareLinkModal from '../components/ShareLinkModal';
 const qTypes = ['Short Text', 'Long Text', 'Multiple Choice', 'Checkbox', 'Rating', 'NPS', 'Dropdown', 'Date'];
 const OTHER_OPTION_LABEL = 'Others';
 
+const createQuestionId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `q-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+};
+
 function TypeGlyph({ type }) {
   if (type === 'Short Text') return <span className="q-type-glyph q-type-glyph--text">T</span>;
   if (type === 'Long Text') {
@@ -335,6 +342,8 @@ export default function FormBuilder({ onBack, formId = null }) {
   const [counter, setCounter] = useState(2);
   const [activePanel, setActivePanel] = useState('ai');
   const [aiPrompt, setAiPrompt] = useState('');
+  const [aiQuestionType, setAiQuestionType] = useState('Multiple Choice');
+  const [aiQuestionCount, setAiQuestionCount] = useState(5);
   const [generatingQuestions, setGeneratingQuestions] = useState(false);
   const [formTitle, setFormTitle] = useState('Untitled form');
   const [formDescription, setFormDescription] = useState('');
@@ -346,29 +355,22 @@ export default function FormBuilder({ onBack, formId = null }) {
   const [showShareModal, setShowShareModal] = useState(false);
   const [publishedForm, setPublishedForm] = useState(null);
 
-  const quickPrompts = [
-    { key: 'NPS', label: 'Add NPS question' },
-    { key: 'wait', label: 'Ask about wait time' },
-    { key: 'email', label: 'Add email follow-up' },
-    { key: 'more', label: 'Generate 5 more questions' }
-  ];
-
-  const addQuestion = (type = 'Short Text', text = '') => {
+  const addQuestion = (type = 'Short Text', text = '', options = []) => {
     const num = counter + 1;
     setCounter(num);
-    setQuestions(prev => [...prev, { id: Date.now(), num, type, text, options: [] }]);
+    setQuestions(prev => [...prev, { id: createQuestionId(), num, type, text, options }]);
   };
 
-  const deleteQuestion = (id) => setQuestions((prev) => prev.filter((q) => q.id !== id));
+  const deleteQuestion = (id) => setQuestions((prev) => prev.filter((q) => String(q.id) !== String(id)));
 
   const duplicateQuestion = (id) => {
     setQuestions((prev) => {
-      const idx = prev.findIndex((q) => q.id === id);
+      const idx = prev.findIndex((q) => String(q.id) === String(id));
       if (idx < 0) return prev;
       const q = prev[idx];
       const copy = {
         ...q,
-        id: Date.now(),
+        id: createQuestionId(),
         options: Array.isArray(q.options) ? [...q.options] : [],
         allowOther: !!q.allowOther,
       };
@@ -378,7 +380,7 @@ export default function FormBuilder({ onBack, formId = null }) {
 
   const cycleType = (id, newType) => {
     setQuestions(prev => prev.map(q =>
-      q.id === id
+      String(q.id) === String(id)
         ? {
             ...q,
             type: newType,
@@ -390,46 +392,57 @@ export default function FormBuilder({ onBack, formId = null }) {
 
   const updateQuestion = (id, updates) => {
     setQuestions(prev => prev.map(q =>
-      q.id === id ? { ...q, ...updates } : q
+      String(q.id) === String(id) ? { ...q, ...updates } : q
     ));
-  };
-
-  const addAIQuestion = (type) => {
-    const presets = {
-      NPS: { t: 'Multiple Choice', q: 'How likely are you to recommend us to a friend or colleague?' },
-      wait: { t: 'Rating', q: 'How would you rate your wait time experience?' },
-      email: { t: 'Short Text', q: 'What is your email address so we can follow up?' },
-    };
-    if (type === 'more') {
-      ['How satisfied are you with our service?', 'What could we improve?', 'Would you use our product again?', 'How did you hear about us?', 'Any additional comments?']
-        .forEach(q => addQuestion('Short Text', q));
-      return;
-    }
-    const p = presets[type];
-    if (p) addQuestion(p.t, p.q);
   };
 
   const sendAIPrompt = async () => {
     const txt = aiPrompt.trim();
     if (!txt) return;
 
+    const typeHints = {
+      'Short Text': 'short answer',
+      'Long Text': 'long answer',
+      'Multiple Choice': 'mcq',
+      'Checkbox': 'checkbox',
+      Rating: 'rating scale',
+      NPS: 'nps scale',
+      Dropdown: 'dropdown',
+      Date: 'date',
+    };
+    const safeCount = Math.min(25, Math.max(1, Number(aiQuestionCount) || 5));
+    const typeHint = typeHints[aiQuestionType] || aiQuestionType;
+
     setGeneratingQuestions(true);
     try {
       const { data } = await apiClient.post('/ai/generate-questions', {
-        selectedSuggestion: txt
+        selectedSuggestion: txt,
+        requestedCount: safeCount,
+        requestedType: typeHint,
       });
 
       if (data.questions && Array.isArray(data.questions)) {
         data.questions.forEach((q) => {
+          const normalizedFieldType = String(q.fieldType || '').trim().toLowerCase();
           const fieldTypeMap = {
             'text': 'Short Text',
             'number': 'Short Text',
             'date': 'Date',
             'dropdown': 'Dropdown',
+            'multiple choice': 'Multiple Choice',
+            'multiple_choice': 'Multiple Choice',
+            'multiple-choice': 'Multiple Choice',
+            'checkbox': 'Checkbox',
+            'checkboxes': 'Checkbox',
           };
-          const formType = fieldTypeMap[q.fieldType] || 'Short Text';
+          const formType = fieldTypeMap[normalizedFieldType] || 'Short Text';
+          const finalType = aiQuestionType || formType;
           const label = q.label || q;
-          addQuestion(formType, label);
+          const isChoiceType = ['Dropdown', 'Multiple Choice', 'Checkbox'].includes(finalType);
+          const aiOptions = Array.isArray(q.options)
+            ? q.options.map((opt) => String(opt).trim()).filter(Boolean)
+            : [];
+          addQuestion(finalType, label, isChoiceType ? aiOptions : []);
         });
         setAiPrompt('');
       }
@@ -443,7 +456,7 @@ export default function FormBuilder({ onBack, formId = null }) {
         const message = errorMsg || 'There is no information about the given topic in the prompt. It requires more information.';
         alert(`${message}\n\nPlease go to the Data Upload page to train more relevant data.`);
       } else {
-        alert('Failed to generate questions. Please check your training data and try again.');
+        alert(errorMsg || 'Failed to generate questions. Please check your training data and try again.');
       }
     } finally {
       setGeneratingQuestions(false);
@@ -565,7 +578,7 @@ export default function FormBuilder({ onBack, formId = null }) {
           setQuestions(qs);
           setCounter(qs.length);
         } else {
-          const id = Date.now();
+          const id = createQuestionId();
           setQuestions([{ id, num: 1, type: 'Short Text', text: '', options: [], required: false }]);
           setCounter(1);
         }
@@ -680,24 +693,40 @@ export default function FormBuilder({ onBack, formId = null }) {
           )}
 
           {activePanel === 'ai' && (
-            <div className="panel-body">
+            <div className="panel-body panel-body--ai">
               <div className="ai-panel">
-                <div className="ai-bubble">Hi! I can help you generate questions based on your training data. Select data and tell me what you need.</div>
+                <div className="ai-bubble">Hi! I can help you generate questions based on your training data. Tell me what you need.</div>
                 <div className="provider-row">
-                  <div className="provider-label">Provider</div>
-                  <select className="setting-select" style={{ width: '100%' }}>
-                    <option>Gemini</option>
-                    <option>Grok</option>
-                    <option>Claude</option>
-                  </select>
-                </div>
-                <div className="quick-prompts-label">Quick Prompts</div>
-                <div className="quick-prompts">
-                  {quickPrompts.map((prompt) => (
-                    <button key={prompt.key} className="qp-btn" onClick={() => addAIQuestion(prompt.key)}>
-                      {prompt.label}
-                    </button>
-                  ))}
+                  <div className="provider-label">Question Type</div>
+                  <div className="ai-controls-row">
+                    <select
+                      className="setting-select ai-type-select"
+                      value={aiQuestionType}
+                      onChange={(e) => setAiQuestionType(e.target.value)}
+                      disabled={generatingQuestions}
+                    >
+                      {qTypes.map((type) => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                    <input
+                      className="setting-input ai-count-input"
+                      type="number"
+                      min="1"
+                      max="25"
+                      value={aiQuestionCount}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        if (!Number.isFinite(next)) {
+                          setAiQuestionCount('');
+                          return;
+                        }
+                        setAiQuestionCount(Math.min(25, Math.max(1, next)));
+                      }}
+                      disabled={generatingQuestions}
+                      aria-label="Number of questions"
+                    />
+                  </div>
                 </div>
                 <div className="ai-input-row">
                   <input

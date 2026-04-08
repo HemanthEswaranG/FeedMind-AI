@@ -17,12 +17,32 @@ const aiRoutes = require('./routes/ai.routes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const allowedOrigins = [
+  ...(process.env.FRONTEND_URLS || '')
+    .split(',')
+    .map((url) => url.trim())
+    .filter(Boolean),
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+].filter(Boolean);
+
+const devTunnelOriginPattern = /^https:\/\/[a-z0-9-]+-\d+\.inc1\.devtunnels\.ms$/i;
+
 // ─── Connect Database ─────────────────────────────────────
 connectDB();
 
 // ─── Middleware ───────────────────────────────────────────
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow non-browser requests (no Origin header) like curl/Postman.
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin) || devTunnelOriginPattern.test(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true,
 }));
 app.use(express.json());

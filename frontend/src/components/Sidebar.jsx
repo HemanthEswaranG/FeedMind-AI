@@ -24,14 +24,6 @@ const Icons = {
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   ),
-  Analytics: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 20v-6.5" />
-      <path d="M8 20v-4.5" />
-      <path d="M16 20v-10.5" />
-      <path d="M3 20h18" />
-    </svg>
-  ),
   OCR: () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
@@ -47,7 +39,6 @@ export default function Sidebar({ currentPage, onNavigate, user }) {
     { id: 'dashboard', icon: <Icons.Dashboard />, label: 'Dashboard' },
     { id: 'forms', icon: <Icons.Forms />, label: 'My Forms' },
     { id: 'responses', icon: <Icons.Responses />, label: 'Responses' },
-    { id: 'analytics', icon: <Icons.Analytics />, label: 'Analytics', badge: 'Beta' },
     { id: 'ocr', icon: <Icons.OCR />, label: 'Data Upload' },
   ];
 

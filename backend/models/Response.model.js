@@ -10,6 +10,7 @@ const responseSchema = new mongoose.Schema({
   form: { type: mongoose.Schema.Types.ObjectId, ref: 'Form', required: true },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   answers: [answerSchema],
+  name: { type: String, default: 'Anonymous' },
   email: { type: String, default: '' },
   status: { type: String, enum: ['valid', 'spam', 'flagged'], default: 'valid' },
   sentiment: { type: String, enum: ['positive', 'neutral', 'negative', 'unknown'], default: 'unknown' },

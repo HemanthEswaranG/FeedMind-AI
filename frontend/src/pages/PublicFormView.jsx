@@ -17,22 +17,13 @@ const getChoiceOptions = (question) => {
   return baseOptions;
 };
 
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-};
-
 export default function PublicFormView({ shareLink, onFormNotFound }) {
   const [form, setForm] = useState(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [otherAnswers, setOtherAnswers] = useState({});
@@ -43,7 +34,6 @@ export default function PublicFormView({ shareLink, onFormNotFound }) {
         const res = await apiClient.get(`/forms/share/${shareLink}`);
         if (res.data?.form) {
           setForm(res.data.form);
-          // Initialize answers object
           const initialAnswers = {};
           res.data.form.questions.forEach(q => {
             initialAnswers[q.id] = q.type === 'Checkbox' ? [] : '';
@@ -58,19 +48,11 @@ export default function PublicFormView({ shareLink, onFormNotFound }) {
         setLoading(false);
       }
     };
-
     fetchForm();
   }, [shareLink]);
 
-  const questionCount = form?.questions?.length || 0;
-  const currentQuestion = form?.questions?.[currentQuestionIndex];
-  const progress = questionCount ? Math.round(((currentQuestionIndex + 1) / questionCount) * 100) : 0;
-
   const handleAnswerChange = (questionId, value) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: value
-    }));
+    setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
 
   const handleOtherAnswerChange = (questionId, value) => {
@@ -99,9 +81,7 @@ export default function PublicFormView({ shareLink, onFormNotFound }) {
   const formatAnswerForSubmit = (question) => {
     const rawAnswer = answers[question.id];
     const otherText = (otherAnswers[question.id] || '').trim();
-
     if (!hasOtherOption(question)) return rawAnswer || (question.type === 'Checkbox' ? [] : '');
-
     if (question.type === 'Checkbox') {
       const values = Array.isArray(rawAnswer) ? rawAnswer : [];
       return values.map((item) => {
@@ -109,11 +89,7 @@ export default function PublicFormView({ shareLink, onFormNotFound }) {
         return otherText ? `Other: ${otherText}` : OTHER_OPTION_LABEL;
       });
     }
-
-    if (rawAnswer === OTHER_OPTION_VALUE) {
-      return otherText ? `Other: ${otherText}` : OTHER_OPTION_LABEL;
-    }
-
+    if (rawAnswer === OTHER_OPTION_VALUE) return otherText ? `Other: ${otherText}` : OTHER_OPTION_LABEL;
     return rawAnswer || '';
   };
 
@@ -121,35 +97,28 @@ export default function PublicFormView({ shareLink, onFormNotFound }) {
     e.preventDefault();
     setSubmitting(true);
     setError('');
-
     try {
-      // Check if email is required
       if (form.settings?.collectEmail === 'required' && !email) {
         setError('Email is required');
         setSubmitting(false);
         return;
       }
-
-      // Format answers for submission
       const formattedAnswers = form.questions.map(q => ({
         questionId: q.id,
         questionText: q.text,
         answer: formatAnswerForSubmit(q),
         type: q.type
       }));
-
       const res = await apiClient.post('/responses/submit', {
         formId: form._id,
         answers: formattedAnswers,
+        name: name || undefined,
         email: email || undefined,
         device: navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop',
         completionTime: 0,
         completionRate: 100
       });
-
-      if (res.data?.success) {
-        setSubmitted(true);
-      }
+      if (res.data?.success) setSubmitted(true);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to submit form');
     } finally {
@@ -157,327 +126,145 @@ export default function PublicFormView({ shareLink, onFormNotFound }) {
     }
   };
 
+  if (loading) return (
+    <div className="public-form-page">
+      <div className="pf-bg-glow pf-glow-1" />
+      <div className="pf-loader-wrap">
+        <div className="pf-loader-ring" />
+        <div className="pf-loader-text">Loading secure form...</div>
+      </div>
+    </div>
+  );
+
+  if (!form || error === 'Form not found or has expired') return (
+    <div className="public-form-page">
+      <div className="pf-error-card">
+        <div className="pf-error-icon">𐄂</div>
+        <h2 className="pf-error-title">Form Unavailable</h2>
+        <p className="pf-error-msg">{error || 'This form does not exist or has been disabled.'}</p>
+        <button className="pf-action-btn secondary" onClick={() => window.location.href = '/'}>Go Home</button>
+      </div>
+    </div>
+  );
+
+  if (submitted) return (
+    <div className="public-form-page">
+      <div className="pf-success-wrap">
+        <div className="pf-success-icon">✓</div>
+        <h2 className="pf-success-title">Submission Successful</h2>
+        <p className="pf-success-msg">{form.settings?.thankYouMessage || 'Thank you for your feedback!'}</p>
+        <div className="pf-success-actions">
+          {form.settings?.redirectUrl && <button onClick={() => window.location.href = form.settings.redirectUrl} className="pf-action-btn primary">Return to Site</button>}
+          <button onClick={() => window.location.reload()} className="pf-action-btn secondary">Submit Another</button>
+        </div>
+      </div>
+    </div>
+  );
+
   const isEmailRequired = form?.settings?.collectEmail === 'required';
   const isEmailOptional = form?.settings?.collectEmail === 'optional';
 
-  if (loading) {
-    return (
-      <div className="public-form-page">
-        <div className="public-form-orb public-form-orb-a" />
-        <div className="public-form-orb public-form-orb-b" />
-        <div className="public-form-state-card">
-          <div className="public-form-state-icon">✦</div>
-          <div className="public-form-state-title">Loading form...</div>
-          <div className="public-form-state-subtitle">Preparing your public survey experience.</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!form) {
-    return (
-      <div className="public-form-page">
-        <div className="public-form-orb public-form-orb-a" />
-        <div className="public-form-orb public-form-orb-b" />
-        <div className="public-form-state-card">
-          <div className="public-form-state-icon public-form-state-icon-error">!</div>
-          <div className="public-form-state-title">Form not found</div>
-          <div className="public-form-state-subtitle">This form has expired or is no longer available.</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (submitted) {
-    return (
-      <div className="public-form-page">
-        <div className="public-form-orb public-form-orb-a" />
-        <div className="public-form-orb public-form-orb-b" />
-        <div className="public-form-state-card public-form-success-card">
-          <div className="public-form-state-icon public-form-state-icon-success">✓</div>
-          <div className="public-form-state-title">Submission received</div>
-          <div className="public-form-state-subtitle">
-            {form.settings?.thankYouMessage || 'Thank you for your feedback! We really appreciate it.'}
-          </div>
-          {form.settings?.redirectUrl && (
-            <button
-              onClick={() => window.location.href = form.settings.redirectUrl}
-              className="public-form-primary-btn"
-            >
-              Continue
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  if (!currentQuestion) {
-    return (
-      <div className="public-form-page">
-        <div className="public-form-orb public-form-orb-a" />
-        <div className="public-form-orb public-form-orb-b" />
-        <div className="public-form-state-card">
-          <div className="public-form-state-icon">?</div>
-          <div className="public-form-state-title">This form is empty</div>
-          <div className="public-form-state-subtitle">There are no questions to answer yet.</div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="public-form-page">
-      <div className="public-form-orb public-form-orb-a" />
-      <div className="public-form-orb public-form-orb-b" />
+    <div className="public-form-page pf-grid-mode">
+      <div className="pf-bg-glow pf-glow-1" />
+      <div className="pf-bg-glow pf-glow-2" />
 
-      <div className="public-form-shell">
-        <aside className="public-form-hero">
-          <div className="public-brand-row">
-            <div className="public-brand-mark">✦</div>
-            <div>
-              <div className="public-brand-kicker">Public form</div>
-              <div className="public-brand-title">FeedMind</div>
+      <div className="pf-container">
+        <aside className="pf-sidebar">
+          <div className="pf-brand">
+            <span className="pf-brand-dot" />
+            <span className="pf-brand-name">FeedMind AI</span>
+          </div>
+          
+          <div className="pf-form-summary">
+            <h1 className="pf-form-title">{form.title}</h1>
+            {form.description && <p className="pf-form-desc">{form.description}</p>}
+          </div>
+
+          <div className="pf-respondent-box">
+            <div className="pf-box-label">Your Information</div>
+            <div className="pf-input-field">
+              <label>Full Name</label>
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Type name..." />
+            </div>
+            <div className="pf-input-field">
+              <label>Email Address {isEmailRequired && '*'}</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Type email..." />
             </div>
           </div>
 
-          <div className="public-hero-badge">Secure public link</div>
-          <h1 className="public-hero-title">{form.title}</h1>
-          {form.description && <p className="public-hero-copy">{form.description}</p>}
-
-          <div className="public-hero-stats">
-            <div className="public-hero-stat">
-              <div className="public-hero-stat-value">{questionCount}</div>
-              <div className="public-hero-stat-label">Questions</div>
-            </div>
-            <div className="public-hero-stat">
-              <div className="public-hero-stat-value">{isEmailRequired ? 'Required' : isEmailOptional ? 'Optional' : 'Off'}</div>
-              <div className="public-hero-stat-label">Email capture</div>
-            </div>
-            <div className="public-hero-stat">
-              <div className="public-hero-stat-value">{formatDate(form.createdAt)}</div>
-              <div className="public-hero-stat-label">Created</div>
-            </div>
-          </div>
-
-          <div className="public-hero-note">
-            {form.settings?.multipleResponses ? 'Multiple responses are allowed on this form.' : 'This form is limited to a single response.'}
+          <div className="pf-form-meta">
+            <div className="pf-meta-pill">Questions: {form.questions.length}</div>
+            <div className="pf-meta-pill">Secure Connection</div>
           </div>
         </aside>
 
-        <section className="public-form-card">
-          <div className="public-form-card-top">
-            <div className="public-form-card-heading">
-              <div className="public-form-card-kicker">Question {currentQuestionIndex + 1} of {questionCount}</div>
-              <div className="public-form-progress-label">{progress}% complete</div>
-            </div>
-            <div className="public-progress-track" aria-hidden="true">
-              <div className="public-progress-fill" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="public-form-body">
-            <div className="public-question-card">
-              <div className="public-question-meta">
-                <span className="public-question-type">{currentQuestion.type}</span>
-                {currentQuestion.required && <span className="public-required-pill">Required</span>}
+        <main className="pf-questions-list">
+          <form onSubmit={handleSubmit}>
+            {form.questions.map((q, qIdx) => (
+              <div key={q.id} className="pf-list-question">
+                <div className="pf-q-head">
+                  <span className="pf-q-num">Q{qIdx + 1}</span>
+                  <div className="pf-q-type-pills">
+                    <span className="pf-q-type-pill">{q.type}</span>
+                    {q.required && <span className="pf-q-req-pill">Required</span>}
+                  </div>
+                </div>
+                <h2 className="pf-q-title">{q.text}</h2>
+                
+                <div className="pf-q-input-wrap">
+                  {q.type === 'Short Text' && (
+                    <input className="pf-text-input" type="text" value={answers[q.id] || ''} onChange={(e) => handleAnswerChange(q.id, e.target.value)} placeholder="Enter answer..." />
+                  )}
+                  {q.type === 'Long Text' && (
+                    <textarea className="pf-textarea" value={answers[q.id] || ''} onChange={(e) => handleAnswerChange(q.id, e.target.value)} placeholder="Enter detailed answer..." rows="3" />
+                  )}
+                  {q.type === 'Rating' && (
+                    <div className="pf-rating-container">
+                      {[1, 2, 3, 4, 5].map(v => <button key={v} type="button" className={`pf-rating-option${answers[q.id] === v.toString() ? ' active' : ''}`} onClick={() => handleAnswerChange(q.id, v.toString())}>{v}</button>)}
+                    </div>
+                  )}
+                  {q.type === 'NPS' && (
+                    <div className="pf-nps-container">
+                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v => <button key={v} type="button" className={`pf-nps-option${answers[q.id] === v.toString() ? ' active' : ''}`} onClick={() => handleAnswerChange(q.id, v.toString())}>{v}</button>)}
+                    </div>
+                  )}
+                  {(q.type === 'Multiple Choice' || q.type === 'Checkbox') && (
+                    <div className="pf-choice-list">
+                      {getChoiceOptions(q).map((opt, idx) => {
+                        const val = opt === OTHER_OPTION_LABEL ? OTHER_OPTION_VALUE : opt;
+                        const sel = q.type === 'Checkbox' ? (answers[q.id] || []).includes(val) : answers[q.id] === val;
+                        return (
+                          <button key={idx} type="button" className={`pf-choice-option${sel ? ' active' : ''}`} onClick={() => q.type === 'Checkbox' ? handleCheckboxToggle(q, val) : handleSingleChoiceSelect(q, val)}>
+                            <div className={`pf-choice-mark ${q.type === 'Checkbox' ? 'square' : 'circle'}`}>{sel && <div className="pf-choice-inner" />}</div>
+                            <span>{opt}</span>
+                          </button>
+                        );
+                      })}
+                      {hasOtherOption(q) && (q.type === 'Checkbox' ? (answers[q.id] || []).includes(OTHER_OPTION_VALUE) : answers[q.id] === OTHER_OPTION_VALUE) && (
+                        <input className="pf-text-input small" type="text" value={otherAnswers[q.id] || ''} onChange={(e) => handleOtherAnswerChange(q.id, e.target.value)} placeholder="Specify other..." />
+                      )}
+                    </div>
+                  )}
+                  {q.type === 'Dropdown' && (
+                    <select className="pf-select" value={answers[q.id] || ''} onChange={(e) => handleSingleChoiceSelect(q, e.target.value)}>
+                      <option value="" disabled>Select option...</option>
+                      {getChoiceOptions(q).map((opt, idx) => <option key={idx} value={opt === OTHER_OPTION_LABEL ? OTHER_OPTION_VALUE : opt}>{opt}</option>)}
+                    </select>
+                  )}
+                </div>
               </div>
-              <label className="public-question-text">
-                {currentQuestion.text}
-              </label>
-
-              {currentQuestion.type === 'Short Text' && (
-                <input
-                  type="text"
-                  value={answers[currentQuestion.id] || ''}
-                  onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                  placeholder="Type your answer"
-                  className="public-form-input"
-                />
-              )}
-
-              {currentQuestion.type === 'Long Text' && (
-                <textarea
-                  value={answers[currentQuestion.id] || ''}
-                  onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                  placeholder="Share as much detail as you want"
-                  rows="5"
-                  className="public-form-textarea"
-                />
-              )}
-
-              {currentQuestion.type === 'Rating' && (
-                <div className="public-rating-grid">
-                  {[1, 2, 3, 4, 5].map(rating => {
-                    const selected = answers[currentQuestion.id] === rating.toString();
-                    return (
-                      <button
-                        key={rating}
-                        type="button"
-                        onClick={() => handleAnswerChange(currentQuestion.id, rating.toString())}
-                        className={`public-rating-btn${selected ? ' is-selected' : ''}`}
-                      >
-                        {rating}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {currentQuestion.type === 'NPS' && (
-                <div className="public-star-grid">
-                  {[1, 2, 3, 4, 5].map(star => {
-                    const selected = answers[currentQuestion.id] && parseInt(answers[currentQuestion.id], 10) >= star;
-                    return (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => handleAnswerChange(currentQuestion.id, star.toString())}
-                        className={`public-star-btn${selected ? ' is-selected' : ''}`}
-                      >
-                        ★
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {currentQuestion.type === 'Multiple Choice' && (
-                <div className="public-option-list">
-                  {getChoiceOptions(currentQuestion).map((option, idx) => {
-                    const optionValue = option === OTHER_OPTION_LABEL ? OTHER_OPTION_VALUE : option;
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => handleSingleChoiceSelect(currentQuestion, optionValue)}
-                        className={`public-option-btn${answers[currentQuestion.id] === optionValue ? ' is-selected' : ''}`}
-                      >
-                        <span className="public-option-dot" />
-                        <span className="public-option-text">{option}</span>
-                      </button>
-                    );
-                  })}
-                  {hasOtherOption(currentQuestion) && answers[currentQuestion.id] === OTHER_OPTION_VALUE && (
-                    <input
-                      type="text"
-                      value={otherAnswers[currentQuestion.id] || ''}
-                      onChange={(e) => handleOtherAnswerChange(currentQuestion.id, e.target.value)}
-                      placeholder="Please specify"
-                      className="public-form-input"
-                    />
-                  )}
-                </div>
-              )}
-
-              {currentQuestion.type === 'Checkbox' && (
-                <div className="public-option-list">
-                  {getChoiceOptions(currentQuestion).map((option, idx) => {
-                    const optionValue = option === OTHER_OPTION_LABEL ? OTHER_OPTION_VALUE : option;
-                    const selectedValues = Array.isArray(answers[currentQuestion.id]) ? answers[currentQuestion.id] : [];
-                    const selected = selectedValues.includes(optionValue);
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => handleCheckboxToggle(currentQuestion, optionValue)}
-                        className={`public-option-btn${selected ? ' is-selected' : ''}`}
-                      >
-                        <span className="public-option-dot" />
-                        <span className="public-option-text">{option}</span>
-                      </button>
-                    );
-                  })}
-                  {hasOtherOption(currentQuestion) && (Array.isArray(answers[currentQuestion.id]) ? answers[currentQuestion.id] : []).includes(OTHER_OPTION_VALUE) && (
-                    <input
-                      type="text"
-                      value={otherAnswers[currentQuestion.id] || ''}
-                      onChange={(e) => handleOtherAnswerChange(currentQuestion.id, e.target.value)}
-                      placeholder="Please specify"
-                      className="public-form-input"
-                    />
-                  )}
-                </div>
-              )}
-
-              {currentQuestion.type === 'Dropdown' && (
-                <>
-                  <select
-                    value={answers[currentQuestion.id] || ''}
-                    onChange={(e) => handleSingleChoiceSelect(currentQuestion, e.target.value)}
-                    className="public-form-select"
-                  >
-                    <option value="">Select an option</option>
-                    {getChoiceOptions(currentQuestion).filter((option) => option !== OTHER_OPTION_LABEL).map((option, idx) => (
-                      <option key={idx} value={option}>{option}</option>
-                    ))}
-                    {hasOtherOption(currentQuestion) && <option value={OTHER_OPTION_VALUE}>{OTHER_OPTION_LABEL}</option>}
-                  </select>
-                  {hasOtherOption(currentQuestion) && answers[currentQuestion.id] === OTHER_OPTION_VALUE && (
-                    <input
-                      type="text"
-                      value={otherAnswers[currentQuestion.id] || ''}
-                      onChange={(e) => handleOtherAnswerChange(currentQuestion.id, e.target.value)}
-                      placeholder="Please specify"
-                      className="public-form-input"
-                      style={{ marginTop: 12 }}
-                    />
-                  )}
-                </>
-              )}
-            </div>
-
-            {(isEmailRequired || isEmailOptional) && (
-              <div className="public-question-card public-email-card">
-                <div className="public-question-meta">
-                  <span className="public-question-type">Email</span>
-                  {isEmailRequired && <span className="public-required-pill">Required</span>}
-                </div>
-                <label className="public-question-text public-question-text-sm">Where should we send updates?</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="public-form-input"
-                />
-              </div>
-            )}
-
-            {error && <div className="public-error-banner">{error}</div>}
-
-            <div className="public-nav-row">
-              <button
-                type="button"
-                onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
-                disabled={currentQuestionIndex === 0}
-                className="public-nav-btn public-nav-btn-secondary"
-              >
-                ← Back
+            ))}
+            
+            {error && <div className="pf-form-error">{error}</div>}
+            
+            <footer className="pf-list-footer">
+              <button type="submit" className="pf-submit-btn" disabled={submitting}>
+                {submitting ? 'Submitting...' : 'Send Feedback'}
               </button>
-
-              <div className="public-nav-hint">Question {currentQuestionIndex + 1} of {questionCount}</div>
-
-              {currentQuestionIndex < questionCount - 1 ? (
-                <button
-                  type="button"
-                  onClick={() => setCurrentQuestionIndex(currentQuestionIndex + 1)}
-                  className="public-nav-btn public-nav-btn-primary"
-                >
-                  Next →
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="public-nav-btn public-nav-btn-submit"
-                >
-                  {submitting ? 'Submitting...' : 'Submit response'}
-                </button>
-              )}
-            </div>
+            </footer>
           </form>
-        </section>
+        </main>
       </div>
     </div>
   );

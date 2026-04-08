@@ -102,11 +102,18 @@ const IconTrash = () => (
   </svg>
 );
 
+const IconLink = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M10 13a5 5 0 0 1 0-7l1-1a5 5 0 0 1 7 7l-1 1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M14 11a5 5 0 0 1 0 7l-1 1a5 5 0 1 1-7-7l1-1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 const IconDots = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-    <circle cx="6" cy="12" r="1.5" />
-    <circle cx="12" cy="12" r="1.5" />
-    <circle cx="18" cy="12" r="1.5" />
+    <circle cx="12" cy="5.5" r="1.4" />
+    <circle cx="12" cy="12" r="1.4" />
+    <circle cx="12" cy="18.5" r="1.4" />
   </svg>
 );
 
@@ -175,14 +182,22 @@ function FormCard({
                 <IconDots />
               </button>
               {showMenu && (
-                <div className="fm-card-dropdown" onClick={stop}>
+                <div className="fm-card-dropdown" onClick={stop} role="menu" aria-label="Form actions">
                   {isPublished && form.shareLink && (
-                    <button type="button" className="dropdown-item" onClick={() => { onShareClick(form); setShowMenu(false); }}>
-                      Copy link
+                    <button type="button" className="fm-card-dropdown-item" onClick={() => { onShareClick(form); setShowMenu(false); }}>
+                      <span className="fm-card-dropdown-item-icon"><IconLink /></span>
+                      <span className="fm-card-dropdown-item-copy">
+                        <span className="fm-card-dropdown-item-label">Copy link</span>
+                        <span className="fm-card-dropdown-item-hint">Share this form</span>
+                      </span>
                     </button>
                   )}
-                  <button type="button" className="dropdown-item dropdown-item-danger" onClick={() => { onDelete(form._id); setShowMenu(false); }}>
-                    Delete
+                  <button type="button" className="fm-card-dropdown-item fm-card-dropdown-item--danger" onClick={() => { onDelete(form._id); setShowMenu(false); }}>
+                    <span className="fm-card-dropdown-item-icon"><IconTrash /></span>
+                    <span className="fm-card-dropdown-item-copy">
+                      <span className="fm-card-dropdown-item-label">Delete</span>
+                      <span className="fm-card-dropdown-item-hint">Move to trash</span>
+                    </span>
                   </button>
                 </div>
               )}
@@ -214,9 +229,6 @@ function FormCard({
           <div className="fm-card-actions">
             <button type="button" className="fm-action-btn" title="Edit" onClick={openBuilder}>
               <IconPencil />
-            </button>
-            <button type="button" className="fm-action-btn" title="Analytics" onClick={(e) => { stop(e); onNavigate('analytics'); }}>
-              <IconChart />
             </button>
             <button type="button" className="fm-action-btn" title="Responses" onClick={(e) => { stop(e); onNavigate('responses'); }}>
               <IconBubble />

@@ -1,4 +1,5 @@
 import React from 'react';
+import apiClient from '../api/apiClient';
 
 export default function Navbar({ user, dateStr, onNavigate, currentPage }) {
   const hour = new Date().getHours();
@@ -8,12 +9,32 @@ export default function Navbar({ user, dateStr, onNavigate, currentPage }) {
     dashboard: `${greeting}, ${user?.name || 'User'} 👋`,
     forms: 'My forms',
     responses: 'Responses',
-    analytics: 'Analytics',
     ocr: 'Data Upload',
     settings: 'Settings',
   };
 
   const currentTitle = pageTitles[currentPage] || pageTitles.dashboard;
+
+  const handleExportCsv = async () => {
+    try {
+      const { data } = await apiClient.get('/responses/export?format=csv', {
+        responseType: 'blob',
+      });
+
+      const blob = new Blob([data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'responses.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export responses CSV:', error);
+    }
+  };
+
   return (
     <div className="navbar">
       <div className="navbar-left">
@@ -37,6 +58,11 @@ export default function Navbar({ user, dateStr, onNavigate, currentPage }) {
           </svg>
           {dateStr}
         </div>
+        {currentPage === 'responses' && (
+          <button className="btn btn-ghost nav-export-btn" onClick={handleExportCsv}>
+            ↓ Export CSV
+          </button>
+        )}
         <button className="btn btn-primary nav-create-btn" onClick={() => onNavigate('builder')}>
           <span style={{ fontSize: 18, marginRight: 6 }}>+</span>
           Create Form

@@ -8,7 +8,6 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Forms from './pages/Forms';
 import Responses from './pages/Responses';
-import Analytics from './pages/Analytics';
 import PublicFormView from './pages/PublicFormView';
 
 import OcrUpload from './pages/OcrUpload';
@@ -103,8 +102,6 @@ export default function App() {
     dashboard: <Dashboard user={user} onNavigate={navigate} />,
     forms: <Forms onNavigate={navigate} />,
     responses: <Responses />,
-    analytics: <Analytics />,
-
     ocr: <OcrUpload />,
     settings: <Settings user={user} onUserUpdate={setUser} onSessionExpired={handleSessionExpired} />,
   };
