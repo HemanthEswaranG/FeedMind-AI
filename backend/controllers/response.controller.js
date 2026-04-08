@@ -2,6 +2,47 @@ const Response = require('../models/Response.model');
 const Form = require('../models/Form.model');
 const User = require('../models/User.model');
 
+const escapeCsvValue = (value) => {
+  if (value === null || value === undefined) return '';
+
+  const normalizedValue = Array.isArray(value)
+    ? value.join('; ')
+    : String(value);
+
+  if (/[,"\n\r]/.test(normalizedValue)) {
+    return `"${normalizedValue.replace(/"/g, '""')}"`;
+  }
+
+  return normalizedValue;
+};
+
+const formatAnswerValue = (answer) => {
+  if (Array.isArray(answer)) return answer.join('; ');
+  if (answer && typeof answer === 'object') return JSON.stringify(answer);
+  return answer ?? '';
+};
+
+const normalizeFileName = (value) => String(value || 'responses')
+  .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .replace(/[. ]+$/g, '');
+
+const buildCsv = (rows) => rows
+  .map((row) => row.map(escapeCsvValue).join(','))
+  .join('\r\n');
+
+const buildUniqueQuestionHeaders = (questions = []) => {
+  const seen = new Map();
+
+  return questions.map((question, index) => {
+    const baseHeader = question?.text?.trim() || `Question ${index + 1}`;
+    const seenCount = seen.get(baseHeader) || 0;
+    seen.set(baseHeader, seenCount + 1);
+    return seenCount === 0 ? baseHeader : `${baseHeader} (${seenCount + 1})`;
+  });
+};
+
 // ─── GET /api/responses ───────────────────────────────────
 exports.getResponses = async (req, res) => {
   try {
@@ -109,19 +150,82 @@ exports.exportResponses = async (req, res) => {
   try {
     const { formId, format = 'json' } = req.query;
     const filter = { owner: req.user._id };
-    if (formId) filter.form = formId;
+    const isOverallExport = !formId || formId === 'overall';
+    let selectedForm = null;
 
-    const responses = await Response.find(filter).populate('form', 'title').lean();
+    if (!isOverallExport) {
+      selectedForm = await Form.findOne({ _id: formId, owner: req.user._id }).lean();
+      if (!selectedForm) {
+        return res.status(404).json({ success: false, message: 'Form not found' });
+      }
+      filter.form = formId;
+    }
+
+    const responses = await Response.find(filter).populate('form', 'title questions').lean();
 
     if (format === 'csv') {
-      const headers = ['ID', 'Form', 'Email', 'Status', 'Sentiment', 'Device', 'Submitted At'];
-      const rows = responses.map(r => [
-        r._id, r.form?.title || '', r.email, r.status, r.sentiment, r.device,
-        new Date(r.createdAt).toISOString(),
-      ]);
-      const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename=responses.csv');
+      let headers = [];
+      let rows = [];
+
+      if (isOverallExport) {
+        headers = ['Timestamp', 'Form Name', 'Email', 'Sentiment', 'Device', 'Questions', 'Answers'];
+        rows = responses.map((response) => {
+          const answers = Array.isArray(response.answers) ? response.answers : [];
+          const questionTexts = answers.map((answer) => answer?.questionText || '');
+          const answerTexts = answers.map((answer) => formatAnswerValue(answer?.answer));
+
+          return [
+            new Date(response.createdAt).toISOString(),
+            response.form?.title || '',
+            response.email || '',
+            response.sentiment || 'unknown',
+            response.device || 'unknown',
+            questionTexts.join(' | '),
+            answerTexts.join(' | '),
+          ];
+        });
+      } else {
+        const questionHeaders = buildUniqueQuestionHeaders(selectedForm?.questions || []);
+        headers = ['Timestamp', 'Email', 'Sentiment', 'Device', ...questionHeaders];
+
+        rows = responses.map((response) => {
+          const answers = Array.isArray(response.answers) ? response.answers : [];
+          const answerLookup = new Map();
+
+          answers.forEach((answer) => {
+            const formattedAnswer = formatAnswerValue(answer?.answer);
+            if (answer?.questionId) answerLookup.set(String(answer.questionId), formattedAnswer);
+            if (answer?.questionText) answerLookup.set(String(answer.questionText), formattedAnswer);
+          });
+
+          const questionAnswers = (selectedForm?.questions || []).map((question) => {
+            const byId = answerLookup.get(String(question.id));
+            if (byId !== undefined) return byId;
+
+            const byText = answerLookup.get(String(question.text));
+            if (byText !== undefined) return byText;
+
+            return '';
+          });
+
+          return [
+            new Date(response.createdAt).toISOString(),
+            response.email || '',
+            response.sentiment || 'unknown',
+            response.device || 'unknown',
+            ...questionAnswers,
+          ];
+        });
+      }
+
+      const csv = buildCsv([headers, ...rows]);
+      const exportFileName = isOverallExport
+        ? 'responses-overall.csv'
+        : `${normalizeFileName(selectedForm?.title || 'form')}-responses.csv`;
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${exportFileName}"`);
+      res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
       return res.send(csv);
     }
 

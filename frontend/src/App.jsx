@@ -20,6 +20,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [loading, setLoading] = useState(true);
   const [publicShareLink, setPublicShareLink] = useState(null);
+  const [responsesSelectedForm, setResponsesSelectedForm] = useState('overall');
 
   // Check for public form link on mount
   useEffect(() => {
@@ -101,7 +102,12 @@ export default function App() {
   const pages = {
     dashboard: <Dashboard user={user} onNavigate={navigate} />,
     forms: <Forms onNavigate={navigate} />,
-    responses: <Responses />,
+    responses: (
+      <Responses
+        selectedForm={responsesSelectedForm}
+        onSelectedFormChange={setResponsesSelectedForm}
+      />
+    ),
     ocr: <OcrUpload />,
     settings: <Settings user={user} onUserUpdate={setUser} onSessionExpired={handleSessionExpired} />,
   };
@@ -113,7 +119,13 @@ export default function App() {
     <div className="app-container">
       <Sidebar currentPage={currentPage} onNavigate={navigate} user={user} />
       <div className="main">
-        <Navbar user={user} dateStr={dateStr} onNavigate={navigate} currentPage={currentPage} />
+        <Navbar
+          user={user}
+          dateStr={dateStr}
+          onNavigate={navigate}
+          currentPage={currentPage}
+          responsesFormId={responsesSelectedForm}
+        />
         <div className="page-content">
           {pages[currentPage] || pages.dashboard}
         </div>

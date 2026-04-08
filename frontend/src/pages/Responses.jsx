@@ -4,9 +4,11 @@ import { generateDetailedPDF } from '../utils/pdfGenerator';
 
 const AI_ANALYSIS_TIMEOUT_MS = Number(import.meta.env.VITE_AI_TIMEOUT_MS) || 60000;
 
-export default function Responses() {
+export default function Responses({ selectedForm: selectedFormProp, onSelectedFormChange }) {
   const [activeTab, setActiveTab] = useState('all');
-  const [selectedForm, setSelectedForm] = useState('overall');
+  const [internalSelectedForm, setInternalSelectedForm] = useState('overall');
+  const selectedForm = selectedFormProp ?? internalSelectedForm;
+  const setSelectedForm = onSelectedFormChange ?? setInternalSelectedForm;
   const [forms, setForms] = useState([{ id: 'overall', title: 'Overall' }]);
   const [openFormDropdown, setOpenFormDropdown] = useState(false);
   const [loading, setLoading] = useState(true);

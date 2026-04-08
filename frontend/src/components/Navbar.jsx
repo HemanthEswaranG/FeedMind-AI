@@ -1,7 +1,20 @@
 import React from 'react';
 import apiClient from '../api/apiClient';
 
-export default function Navbar({ user, dateStr, onNavigate, currentPage }) {
+const getFileNameFromContentDisposition = (contentDisposition) => {
+  if (!contentDisposition) return null;
+
+  const match = contentDisposition.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)\"?/i);
+  if (!match?.[1]) return null;
+
+  try {
+    return decodeURIComponent(match[1].replace(/\"/g, ''));
+  } catch {
+    return match[1].replace(/\"/g, '');
+  }
+};
+
+export default function Navbar({ user, dateStr, onNavigate, currentPage, responsesFormId = 'overall' }) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   
@@ -17,15 +30,21 @@ export default function Navbar({ user, dateStr, onNavigate, currentPage }) {
 
   const handleExportCsv = async () => {
     try {
-      const { data } = await apiClient.get('/responses/export?format=csv', {
+      const params = new URLSearchParams({ format: 'csv' });
+      if (responsesFormId && responsesFormId !== 'overall') {
+        params.set('formId', responsesFormId);
+      }
+
+      const { data, headers } = await apiClient.get(`/responses/export?${params.toString()}`, {
         responseType: 'blob',
       });
 
       const blob = new Blob([data], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
+      const fileName = getFileNameFromContentDisposition(headers?.['content-disposition']) || 'responses.csv';
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'responses.csv');
+      link.setAttribute('download', fileName);
       document.body.appendChild(link);
       link.click();
       link.remove();
